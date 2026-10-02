@@ -5,7 +5,7 @@
   - 상단 2줄 제목 고정 (1줄 노랑 / 2줄 흰색, 강조 키워드 하늘색)
   - 가운데 원본 클립 720x930, 문장마다 1~2컷
   - 클립 아래쪽에 1~3어절 자막 (흰 글씨 + 검은 외곽선), 포인트 그래픽(칩·큰 라벨)
-  - 원본 음성은 쓰지 않고 TTS 내레이션 + BGM (tools/mix_audio.py)
+  - 내레이션 구간(TTS)과 원본 발언 구간(type: original, 원본 소리 + 노란 자막)을 번갈아 배치, BGM은 mix_audio.py로 덕킹
 
 TTS 폴더(tools/typecast_tts.py 결과: 01.wav, 01.json …)가 있으면 문장 길이와 자막 타이밍을
 그 음성에 맞춘다. 없으면 글자 수로 길이를 추정해 무음 미리보기를 만든다.
@@ -87,6 +87,20 @@ def words_from_audio(text, wav, dur):
     return words
 
 
+def extract_original(src, parts, out, lufs=-16):
+    """원본 영상의 발언 구간들을 잘라 이어 붙이고 내레이션과 비슷한 크기로 맞춘다."""
+    ins, filt = [], []
+    for i, p in enumerate(parts):
+        d = p["end"] - p["start"]
+        ins += ["-ss", f"{p['start']:.3f}", "-t", f"{d:.3f}", "-i", src]
+        filt.append(f"[{i}:a]aformat=sample_rates=48000:channel_layouts=mono,"
+                    f"afade=t=in:d=0.03,afade=t=out:st={max(d - 0.04, 0):.3f}:d=0.04[p{i}]")
+    filt.append("".join(f"[p{i}]" for i in range(len(parts))) + f"concat=n={len(parts)}:v=0:a=1,"
+                f"loudnorm=I={lufs}:TP=-2:LRA=11,aresample=48000")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", ";".join(filt), str(out)],
+                   check=True)
+
+
 def chunk_words(words, max_words=3, max_chars=12):
     chunk = []
     for w in words:
@@ -121,6 +135,8 @@ def build_ass(spec, timeline, total):
         f"{ass_color(BLACK)},0,0,0,0,100,100,0,0,1,2,0,5,10,10,0,1",
         f"Style: Cap,{FONT},{fs},{ass_color(WHITE)},{ass_color(WHITE)},{ass_color(BLACK)},"
         f"{ass_color(BLACK, '80')},0,0,0,0,100,100,0,0,1,5,2,5,20,20,0,1",
+        f"Style: CapY,{FONT},{fs},{ass_color(YELLOW)},{ass_color(YELLOW)},{ass_color(BLACK)},"
+        f"{ass_color(BLACK, '80')},0,0,0,0,100,100,0,0,1,5,2,5,20,20,0,1",
         f"Style: Chip,{FONT},44,{ass_color(WHITE)},{ass_color(WHITE)},{ass_color(BLACK)},"
         f"{ass_color(BLACK)},0,0,0,0,100,100,0,0,3,8,0,5,0,0,0,1",
         f"Style: Big,{FONT},120,{ass_color(YELLOW)},{ass_color(YELLOW)},{ass_color(BLACK)},"
@@ -139,7 +155,12 @@ def build_ass(spec, timeline, total):
     cap_y = VIDEO_Y + VIDEO_H - 150
     for seg in timeline:
         s0, s1 = seg["start"], seg["end"]
-        chunks = list(chunk_words(seg["words"], max_chars=seg.get("max_chars", 12)))
+        if seg.get("type") == "original":
+            for a, b, text in seg["captions"]:
+                ev(a, b, "CapY", f"{{\\pos({W // 2},{cap_y})}}{text}", layer=2)
+            chunks = []
+        else:
+            chunks = list(chunk_words(seg["words"], max_chars=seg.get("max_chars", 12)))
         for i, chunk in enumerate(chunks):
             a = s0 + chunk[0]["start"]
             b = s0 + chunks[i + 1][0]["start"] if i + 1 < len(chunks) else s1
@@ -148,6 +169,7 @@ def build_ass(spec, timeline, total):
 
         for ov in seg.get("overlay", []):
             a = s0 + ov.get("at", 0.0) * (s1 - s0)
+            s1 = seg["start"] + ov.get("until", 1.0) * (seg["end"] - seg["start"])
             if ov["type"] == "chips":
                 items, per_row = ov["items"], ov.get("per_row", 4)
                 y0 = ov.get("y", cap_y - 170)
@@ -188,23 +210,44 @@ def main():
     src = spec["source"]
     work = Path(tempfile.mkdtemp(prefix="short_"))
 
-    # 1) 문장별 길이와 단어 타이밍
-    timeline, t, wavs = [], 0.0, []
-    for i, seg in enumerate(spec["segments"], 1):
-        if args.tts:
-            found = [f for f in sorted(Path(args.tts).glob(f"{i:02}.*"))
-                     if f.suffix.lower() in (".wav", ".mp3", ".m4a")]
-            if not found:
-                sys.exit(f"{args.tts}에 {i:02}번 문장 음성(wav/mp3/m4a)이 없습니다")
+    # 1) 구간별 길이와 단어 타이밍
+    #    내레이션 구간은 TTS 파일(01, 02 … 내레이션 순서), 원본 구간은 원본 영상의 소리와 화면을 그대로 쓴다.
+    timeline, t, voices, k = [], 0.0, [], 0
+    for seg in spec["segments"]:
+        if seg.get("type") == "original":
+            parts = seg["parts"]
+            d = sum(p["end"] - p["start"] for p in parts)
+            caps, off = [], t
+            for p in parts:
+                for a, b, text in seg.get("captions", []):
+                    if p["start"] - 0.05 <= a < p["end"]:
+                        caps.append((off + a - p["start"], off + min(b, p["end"]) - p["start"], text))
+                off += p["end"] - p["start"]
+            wav = work / f"orig_{len(timeline):02}.wav"
+            extract_original(src, parts, wav)
+            voices.append(wav)
+            timeline.append({**seg, "clips": parts, "start": t, "end": t + d, "words": [],
+                             "captions": caps})
+            t += d
+            continue
+        k += 1
+        found = [f for f in sorted(Path(args.tts).glob(f"{k:02}.*"))
+                 if f.suffix.lower() in (".wav", ".mp3", ".m4a")] if args.tts else []
+        if args.tts and not found:
+            sys.exit(f"{args.tts}에 {k:02}번 내레이션 음성(wav/mp3/m4a)이 없습니다")
+        if found:
             wav = found[0]
-            meta = Path(args.tts) / f"{i:02}.json"
+            meta = Path(args.tts) / f"{k:02}.json"
             d = duration(wav)
             words = json.loads(meta.read_text(encoding="utf-8"))["words"] if meta.exists() else None
             if not words:
                 words = words_from_audio(seg["text"], wav, d)
-            wavs.append(wav)
         else:
             words, d = estimate_words(seg["text"], args.rate)
+            wav = work / f"silence_{k:02}.wav"
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono",
+                            "-t", f"{d:.3f}", str(wav)], check=True)
+        voices.append(wav)
         timeline.append({**seg, "start": t, "end": t + d, "words": words})
         t += d
     total = t
@@ -242,22 +285,16 @@ def main():
                     "-map", "[vout]", "-t", f"{total:.3f}", "-c:v", "libx264", "-preset", "medium",
                     "-crf", "19", "-pix_fmt", "yuv420p", str(video)], check=True)
 
-    # 3) 오디오: 내레이션 합본 → BGM 믹스
-    narration = work / "narration.wav"
-    if wavs:
-        ins = sum((["-i", str(w)] for w in wavs), [])
-        subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex",
-                        "".join(f"[{k}:a]" for k in range(len(wavs))) + f"concat=n={len(wavs)}:v=0:a=1",
-                        "-ar", "48000", str(narration)], check=True)
-        mix = work / "mix.wav"
-        subprocess.run([sys.executable, str(TOOLS / "mix_audio.py"), str(narration), "--out", str(mix)],
-                       check=True)
-        audio = ["-i", str(mix)]
-        afilter = []
-    else:
-        # 미리보기: BGM만 (-15 dB), 라우드니스 정규화 없이
-        audio = ["-stream_loop", "-1", "-i", spec.get("bgm", "/mnt/project-files/assets/bgm/new_day.mp3")]
-        afilter = ["-af", f"volume=-15dB,afade=t=in:d=0.3,afade=t=out:st={max(total - 1.5, 0):.2f}:d=1.5"]
+    # 3) 오디오: 내레이션 + 원본 발언을 순서대로 이어 붙여 말소리 트랙 → BGM 믹스(말소리 구간 덕킹)
+    voice = work / "voice.wav"
+    ins = sum((["-i", str(v)] for v in voices), [])
+    pre = "".join(f"[{i}:a]aformat=sample_rates=48000:channel_layouts=mono[a{i}];" for i in range(len(voices)))
+    subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex",
+                    pre + "".join(f"[a{i}]" for i in range(len(voices))) + f"concat=n={len(voices)}:v=0:a=1",
+                    str(voice)], check=True)
+    mix = work / "mix.wav"
+    subprocess.run([sys.executable, str(TOOLS / "mix_audio.py"), str(voice), "--out", str(mix)], check=True)
+    audio, afilter = ["-i", str(mix)], []
 
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), *audio, *afilter,
                     "-map", "0:v", "-map", "1:a", "-t", f"{total:.3f}", "-c:v", "copy",
