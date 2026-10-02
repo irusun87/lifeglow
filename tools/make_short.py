@@ -3,7 +3,7 @@
 
 레이아웃 (720x1280, 30fps):
   - 상단 2줄 제목 고정 (1줄 노랑 / 2줄 흰색, 강조 키워드 하늘색)
-  - 가운데 원본 클립 720x930, 문장마다 1~2컷
+  - 가운데 원본 클립 720x774 (y=273), 문장마다 1~2컷
   - 클립 아래쪽에 1~3어절 자막 (흰 글씨 + 검은 외곽선), 포인트 그래픽(칩·큰 라벨)
   - 내레이션 구간(TTS)과 원본 발언 구간(type: original, 원본 소리 + 노란 자막)을 번갈아 배치, BGM은 mix_audio.py로 덕킹
 
@@ -25,12 +25,15 @@ import tempfile
 from pathlib import Path
 
 W, H, FPS = 720, 1280, 30
-VIDEO_Y, VIDEO_H = 150, 930
+# 기존 채널 영상(차승원·박미선 편) 실측: 영상 720x774 @ y=273, 제목 1줄 y≈147, 2줄 y≈233, 자막 y≈770
+VIDEO_Y, VIDEO_H = 273, 774
+TITLE_SIZE, TITLE_Y1, TITLE_Y2 = 68, 147, 233
+CAPTION_Y = 770
 FONT_DIR = os.environ.get("LIFEGLOW_FONTS", "/mnt/project-files/assets/fonts/paperlogy")
 FONT = "Paperlogy 8 ExtraBold"
 TOOLS = Path(__file__).resolve().parent
 
-YELLOW, WHITE, CYAN, BLACK = "FFE14D", "FFFFFF", "4DD8FF", "000000"
+YELLOW, WHITE, CYAN, BLACK = "FCF103", "FFFFFF", "00FEFD", "000000"  # 기존 채널 영상 실측 색
 
 
 def ass_color(rgb, alpha="00"):
@@ -131,7 +134,7 @@ def build_ass(spec, timeline, total):
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
         "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        f"Style: Title,{FONT},56,{ass_color(WHITE)},{ass_color(WHITE)},{ass_color(BLACK)},"
+        f"Style: Title,{FONT},{TITLE_SIZE},{ass_color(WHITE)},{ass_color(WHITE)},{ass_color(BLACK)},"
         f"{ass_color(BLACK)},0,0,0,0,100,100,0,0,1,2,0,5,10,10,0,1",
         f"Style: Cap,{FONT},{fs},{ass_color(WHITE)},{ass_color(WHITE)},{ass_color(BLACK)},"
         f"{ass_color(BLACK, '80')},0,0,0,0,100,100,0,0,1,5,2,5,20,20,0,1",
@@ -149,10 +152,10 @@ def build_ass(spec, timeline, total):
         lines.append(f"Dialogue: {layer},{ass_time(start)},{ass_time(end)},{style},,0,0,0,,{text}")
 
     t1, t2 = spec["title"]
-    ev(0, total, "Title", f"{{\\pos({W // 2},48)\\c{ass_color(YELLOW)}}}{title_line(t1)}")
-    ev(0, total, "Title", f"{{\\pos({W // 2},112)\\c{ass_color(WHITE)}}}{title_line(t2)}")
+    ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y1})\\c{ass_color(YELLOW)}}}{title_line(t1)}")
+    ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y2})\\c{ass_color(WHITE)}}}{title_line(t2)}")
 
-    cap_y = VIDEO_Y + VIDEO_H - 150
+    cap_y = CAPTION_Y
     for seg in timeline:
         s0, s1 = seg["start"], seg["end"]
         if seg.get("type") == "original":
@@ -192,7 +195,7 @@ def build_ass(spec, timeline, total):
                            f"{{\\pos({cx},{cy})\\fs64\\c{ass_color('FF2D2D')}\\3c{ass_color(WHITE)}\\bord4"
                            f"\\fscx70\\fscy70\\t(0,120,\\fscx100\\fscy100)}}X", layer=3)
             elif ov["type"] == "big":
-                y = ov.get("y", VIDEO_Y + 300)
+                y = ov.get("y", VIDEO_Y + 230)
                 ev(a, s1, "Big", f"{{\\pos({W // 2},{y})\\fad(100,0)\\fscx80\\fscy80"
                                  f"\\t(0,150,\\fscx100\\fscy100)}}{title_line(ov['text'])}", layer=1)
     return "\n".join(lines) + "\n"
@@ -252,7 +255,7 @@ def main():
         t += d
     total = t
 
-    # 2) 컷 편집: 문장 길이를 클립들에 나눠 배정 → 720x930
+    # 2) 컷 편집: 문장 길이를 클립들에 나눠 배정 → 720x774
     crop = spec.get("crop", {"y": 100, "h": 730})
     ch = crop["h"]
     cw = round(ch * W / VIDEO_H) // 2 * 2
