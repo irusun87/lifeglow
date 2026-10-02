@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""라이프글로우 쇼츠 한 편을 스펙(JSON)대로 렌더링한다.
+
+레이아웃 (720x1280, 30fps):
+  - 상단 2줄 제목 고정 (1줄 노랑 / 2줄 흰색, 강조 키워드 하늘색)
+  - 가운데 원본 클립 720x930, 문장마다 1~2컷
+  - 클립 아래쪽에 1~3어절 자막 (흰 글씨 + 검은 외곽선), 포인트 그래픽(칩·큰 라벨)
+  - 원본 음성은 쓰지 않고 TTS 내레이션 + BGM (tools/mix_audio.py)
+
+TTS 폴더(tools/typecast_tts.py 결과: 01.wav, 01.json …)가 있으면 문장 길이와 자막 타이밍을
+그 음성에 맞춘다. 없으면 글자 수로 길이를 추정해 무음 미리보기를 만든다.
+
+사용 예:
+  python3 tools/make_short.py shorts/ep01_baejongok.json --tts out/ep01/tts --out ep01.mp4
+  python3 tools/make_short.py shorts/ep01_baejongok.json --out preview.mp4   # 무음 미리보기
+"""
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+W, H, FPS = 720, 1280, 30
+VIDEO_Y, VIDEO_H = 150, 930
+FONT_DIR = os.environ.get("LIFEGLOW_FONTS", "/mnt/project-files/assets/fonts/paperlogy")
+FONT = "Paperlogy 8 ExtraBold"
+TOOLS = Path(__file__).resolve().parent
+
+YELLOW, WHITE, CYAN, BLACK = "FFE14D", "FFFFFF", "4DD8FF", "000000"
+
+
+def ass_color(rgb, alpha="00"):
+    r, g, b = rgb[0:2], rgb[2:4], rgb[4:6]
+    return f"&H{alpha}{b}{g}{r}".upper()
+
+
+def ass_time(t):
+    cs = int(round(t * 100))
+    h, cs = divmod(cs, 360000)
+    m, cs = divmod(cs, 6000)
+    s, cs = divmod(cs, 100)
+    return f"{h}:{m:02}:{s:02}.{cs:02}"
+
+
+def duration(path):
+    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json",
+                          str(path)], capture_output=True, text=True, check=True)
+    return float(json.loads(out.stdout)["format"]["duration"])
+
+
+def estimate_words(text, rate):
+    """TTS가 없을 때: 어절별 길이를 글자 수 비례로 나눈 가짜 타임스탬프."""
+    words = text.split()
+    weights = [max(len(re.sub(r"[^\w]", "", w)), 1) for w in words]
+    total = sum(weights) / rate
+    t, out = 0.0, []
+    for w, n in zip(words, weights):
+        d = n / rate
+        out.append({"text": w, "start": t, "end": t + d})
+        t += d
+    return out, total + 0.25
+
+
+def chunk_words(words, max_words=3, max_chars=12):
+    chunk = []
+    for w in words:
+        if chunk and (len(chunk) >= max_words or
+                      len(" ".join(x["text"] for x in chunk + [w])) > max_chars):
+            yield chunk
+            chunk = []
+        chunk.append(w)
+        if w["text"].rstrip().endswith((".", "?", "!", ",")):
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
+
+
+def title_line(parts):
+    """[[텍스트, 색]] 또는 "텍스트" → ASS 인라인 색 태그."""
+    if isinstance(parts, str):
+        return parts
+    return "".join(f"{{\\c{ass_color(c)}}}{t}" for t, c in parts)
+
+
+def build_ass(spec, timeline, total):
+    fs = spec.get("caption_size", 60)
+    lines = [
+        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {W}", f"PlayResY: {H}", "WrapStyle: 2", "",
+        "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
+        "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
+        "Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+        f"Style: Title,{FONT},56,{ass_color(WHITE)},{ass_color(WHITE)},{ass_color(BLACK)},"
+        f"{ass_color(BLACK)},0,0,0,0,100,100,0,0,1,2,0,5,10,10,0,1",
+        f"Style: Cap,{FONT},{fs},{ass_color(WHITE)},{ass_color(WHITE)},{ass_color(BLACK)},"
+        f"{ass_color(BLACK, '80')},0,0,0,0,100,100,0,0,1,5,2,5,20,20,0,1",
+        f"Style: Chip,{FONT},44,{ass_color(WHITE)},{ass_color(WHITE)},{ass_color(BLACK)},"
+        f"{ass_color(BLACK)},0,0,0,0,100,100,0,0,3,8,0,5,0,0,0,1",
+        f"Style: Big,{FONT},120,{ass_color(YELLOW)},{ass_color(YELLOW)},{ass_color(BLACK)},"
+        f"{ass_color(BLACK, '60')},0,0,0,0,100,100,0,0,1,7,4,5,0,0,0,1",
+        "", "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    ]
+
+    def ev(start, end, style, text, layer=0):
+        lines.append(f"Dialogue: {layer},{ass_time(start)},{ass_time(end)},{style},,0,0,0,,{text}")
+
+    t1, t2 = spec["title"]
+    ev(0, total, "Title", f"{{\\pos({W // 2},48)\\c{ass_color(YELLOW)}}}{title_line(t1)}")
+    ev(0, total, "Title", f"{{\\pos({W // 2},112)\\c{ass_color(WHITE)}}}{title_line(t2)}")
+
+    cap_y = VIDEO_Y + VIDEO_H - 150
+    for seg in timeline:
+        s0, s1 = seg["start"], seg["end"]
+        chunks = list(chunk_words(seg["words"]))
+        for i, chunk in enumerate(chunks):
+            a = s0 + chunk[0]["start"]
+            b = s0 + chunks[i + 1][0]["start"] if i + 1 < len(chunks) else s1
+            text = " ".join(w["text"] for w in chunk).rstrip(".,")
+            ev(a, b, "Cap", f"{{\\pos({W // 2},{cap_y})}}{text}", layer=2)
+
+        for ov in seg.get("overlay", []):
+            a = s0 + ov.get("at", 0.0) * (s1 - s0)
+            if ov["type"] == "chips":
+                items, per_row = ov["items"], ov.get("per_row", 4)
+                y0 = ov.get("y", cap_y - 170)
+                n_rows = (len(items) + per_row - 1) // per_row
+                for i, it in enumerate(items):
+                    row, col = divmod(i, per_row)
+                    n_in_row = min(per_row, len(items) - row * per_row)
+                    gap = ov.get("gap", 165)
+                    x = W // 2 + int((col - (n_in_row - 1) / 2) * gap)
+                    y = y0 - (n_rows - 1 - row) * 78
+                    appear = a + (i * ov.get("stagger", 0.0))
+                    text = it["text"]
+                    tag = (f"{{\\pos({x},{y})\\3c{ass_color(it.get('color', 'E53935'))}"
+                           f"\\fs{ov.get('size', 44)}\\fad(120,0)}}")
+                    ev(appear, s1, "Chip", tag + text, layer=1)
+                    if it.get("cross"):
+                        # 칩 오른쪽 위에 빨간 X 표시
+                        cx, cy = x + int(len(text) * ov.get("size", 44) * 0.5) + 24, y - 26
+                        ev(appear + 0.25, s1, "Big",
+                           f"{{\\pos({cx},{cy})\\fs64\\c{ass_color('FF2D2D')}\\3c{ass_color(WHITE)}\\bord4"
+                           f"\\fscx70\\fscy70\\t(0,120,\\fscx100\\fscy100)}}X", layer=3)
+            elif ov["type"] == "big":
+                y = ov.get("y", VIDEO_Y + 300)
+                ev(a, s1, "Big", f"{{\\pos({W // 2},{y})\\fad(100,0)\\fscx80\\fscy80"
+                                 f"\\t(0,150,\\fscx100\\fscy100)}}{title_line(ov['text'])}", layer=1)
+    return "\n".join(lines) + "\n"
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("spec")
+    p.add_argument("--tts", help="typecast_tts.py 결과 폴더 (01.wav, 01.json …)")
+    p.add_argument("--out", required=True)
+    p.add_argument("--rate", type=float, default=7.0, help="TTS 없을 때 초당 글자 수 추정치")
+    args = p.parse_args()
+
+    spec = json.loads(Path(args.spec).read_text(encoding="utf-8"))
+    src = spec["source"]
+    work = Path(tempfile.mkdtemp(prefix="short_"))
+
+    # 1) 문장별 길이와 단어 타이밍
+    timeline, t, wavs = [], 0.0, []
+    for i, seg in enumerate(spec["segments"], 1):
+        if args.tts:
+            wav = Path(args.tts) / f"{i:02}.wav"
+            meta = Path(args.tts) / f"{i:02}.json"
+            d = duration(wav)
+            words = json.loads(meta.read_text(encoding="utf-8"))["words"] if meta.exists() else None
+            if not words:
+                words, _ = estimate_words(seg["text"], len(re.sub(r"[^\w]", "", seg["text"])) / d)
+            wavs.append(wav)
+        else:
+            words, d = estimate_words(seg["text"], args.rate)
+        timeline.append({**seg, "start": t, "end": t + d, "words": words})
+        t += d
+    total = t
+
+    # 2) 컷 편집: 문장 길이를 클립들에 나눠 배정 → 720x930
+    crop = spec.get("crop", {"y": 100, "h": 730})
+    ch = crop["h"]
+    cw = round(ch * W / VIDEO_H) // 2 * 2
+    inputs, filters, labels, n = [], [], [], 0
+    for seg in timeline:
+        d = seg["end"] - seg["start"]
+        clips = seg["clips"]
+        lens = [c["end"] - c["start"] for c in clips]
+        for c, ln in zip(clips, lens):
+            cd = d * ln / sum(lens)
+            if cd > ln + 0.05:
+                print(f"경고: {c['start']}~{c['end']} 클립이 {cd - ln:.2f}s 부족해 마지막 프레임을 늘립니다",
+                      file=sys.stderr)
+            x = min(max(c["x"] - cw // 2, 0), 1920 - cw)
+            inputs += ["-ss", f"{c['start']:.3f}", "-t", f"{cd + 0.5:.3f}", "-i", src]
+            pre = f"delogo={spec['delogo']}," if spec.get("delogo") else ""
+            filters.append(
+                f"[{n}:v]{pre}crop={cw}:{ch}:{x}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
+                f"fps={FPS},setsar=1,tpad=stop_mode=clone:stop_duration=2,trim=duration={cd:.3f},"
+                f"setpts=PTS-STARTPTS[v{n}]")
+            labels.append(f"[v{n}]")
+            n += 1
+    filters.append("".join(labels) + f"concat=n={n}:v=1:a=0,"
+                   f"pad={W}:{H}:0:{VIDEO_Y}:black[cut]")
+    ass = work / "overlay.ass"
+    ass.write_text(build_ass(spec, timeline, total), encoding="utf-8")
+    filters.append(f"[cut]ass={ass}:fontsdir={FONT_DIR}[vout]")
+    video = work / "video.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", *inputs, "-filter_complex", ";".join(filters),
+                    "-map", "[vout]", "-t", f"{total:.3f}", "-c:v", "libx264", "-preset", "medium",
+                    "-crf", "19", "-pix_fmt", "yuv420p", str(video)], check=True)
+
+    # 3) 오디오: 내레이션 합본 → BGM 믹스
+    narration = work / "narration.wav"
+    if wavs:
+        ins = sum((["-i", str(w)] for w in wavs), [])
+        subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex",
+                        "".join(f"[{k}:a]" for k in range(len(wavs))) + f"concat=n={len(wavs)}:v=0:a=1",
+                        "-ar", "48000", str(narration)], check=True)
+        mix = work / "mix.wav"
+        subprocess.run([sys.executable, str(TOOLS / "mix_audio.py"), str(narration), "--out", str(mix)],
+                       check=True)
+        audio = ["-i", str(mix)]
+        afilter = []
+    else:
+        # 미리보기: BGM만 (-15 dB), 라우드니스 정규화 없이
+        audio = ["-stream_loop", "-1", "-i", spec.get("bgm", "/mnt/project-files/assets/bgm/new_day.mp3")]
+        afilter = ["-af", f"volume=-15dB,afade=t=in:d=0.3,afade=t=out:st={max(total - 1.5, 0):.2f}:d=1.5"]
+
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), *audio, *afilter,
+                    "-map", "0:v", "-map", "1:a", "-t", f"{total:.3f}", "-c:v", "copy",
+                    "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", args.out],
+                   check=True)
+    print(f"완료: {args.out} ({total:.2f}s, {n}컷)")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,1 +1,14 @@
 # lifeglow
+## 쇼츠 렌더링 (`tools/make_short.py`)
+
+에피소드 스펙(JSON, `shorts/`)대로 컷 편집 → 720x1280 레이아웃 → 상단 제목·자막·포인트 그래픽 → 내레이션 + BGM 믹스까지 한 번에 만든다.
+`tools/typecast_tts.py`(PR #1)와 `tools/mix_audio.py`(PR #2)를 함께 쓴다.
+
+```bash
+# TTS 폴더(01.wav, 01.json …)에 맞춰 최종본
+python3 tools/make_short.py shorts/ep01_baejongok.json --tts out/ep01/tts --out ep01.mp4
+# TTS 없이 글자 수로 길이를 추정한 무음 미리보기
+python3 tools/make_short.py shorts/ep01_baejongok.json --out preview.mp4
+```
+
+TTS 파일을 타입캐스트에서 직접 받은 경우 `01.wav` … 처럼 문장 순서대로 이름을 붙여 한 폴더에 두면 된다 (타임스탬프 json이 없으면 글자 수 비례로 자막 타이밍을 나눈다).
