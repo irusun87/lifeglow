@@ -96,8 +96,11 @@ def extract_original(src, parts, out, lufs=-16):
     for i, p in enumerate(parts):
         d = p["end"] - p["start"]
         ins += ["-ss", f"{p['start']:.3f}", "-t", f"{d:.3f}", "-i", src]
-        filt.append(f"[{i}:a]aformat=sample_rates=48000:channel_layouts=mono,"
-                    f"afade=t=in:d=0.03,afade=t=out:st={max(d - 0.04, 0):.3f}:d=0.04[p{i}]")
+        # 이어지는 구간(앞 구간 끝 = 이 구간 시작, 화면 위치만 바꾼 경우)은 페이드 없이 붙인다
+        fin = "" if i > 0 and abs(parts[i - 1]["end"] - p["start"]) < 0.01 else "afade=t=in:d=0.03,"
+        fout = ("" if i + 1 < len(parts) and abs(parts[i + 1]["start"] - p["end"]) < 0.01
+                else f"afade=t=out:st={max(d - 0.04, 0):.3f}:d=0.04,")
+        filt.append(f"[{i}:a]aformat=sample_rates=48000:channel_layouts=mono,{fin}{fout}anull[p{i}]")
     filt.append("".join(f"[p{i}]" for i in range(len(parts))) + f"concat=n={len(parts)}:v=0:a=1,"
                 f"loudnorm=I={lufs}:TP=-2:LRA=11,aresample=48000")
     subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", ";".join(filt), str(out)],
@@ -122,6 +125,34 @@ def avoid_slivers(start, dur, cuts, min_shot=0.5):
     if inner and start + dur - inner[-1] < min_shot and inner[-1] > vs:
         ve = inner[-1]
     return vs, vs - start, max(ve - vs, 0.04)
+
+
+def face_x(src, start, end, default=960):
+    """클립 구간에서 가장 큰 얼굴의 가로 중심(원본 픽셀)을 찾는다. OpenCV가 없거나 못 찾으면 default."""
+    try:
+        import cv2
+        import numpy as np
+    except ImportError:
+        return default
+    casc = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    prof = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_profileface.xml")
+    xs = []
+    for k in range(5):
+        t = start + (end - start) * (k + 0.5) / 5
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t:.3f}", "-i", src, "-frames:v", "1",
+                              "-vf", "scale=960:540", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+                             capture_output=True).stdout
+        if len(raw) != 960 * 540:
+            continue
+        g = np.frombuffer(raw, np.uint8).reshape(540, 960)
+        faces = list(casc.detectMultiScale(g, 1.1, 5, minSize=(50, 50)))
+        if not faces:
+            faces = list(prof.detectMultiScale(g, 1.1, 5, minSize=(50, 50)))
+            faces += [(960 - x - w, y, w, h) for x, y, w, h in prof.detectMultiScale(g[:, ::-1].copy(), 1.1, 5, minSize=(50, 50))]
+        if faces:
+            x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
+            xs.append((x + w / 2) * 2)
+    return int(sorted(xs)[len(xs) // 2]) if xs else default
 
 
 def chunk_words(words, max_words=3, max_chars=12):
@@ -182,8 +213,9 @@ def build_ass(spec, timeline, total):
         lines.append(f"Dialogue: {layer},{ass_time(start)},{ass_time(end)},{style},,0,0,0,,{text}")
 
     t1, t2 = spec["title"]
-    ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y1})\\c{ass_color(YELLOW)}}}{title_line(t1)}")
-    ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y2})\\c{ass_color(WHITE)}}}{title_line(t2)}")
+    tsize = spec.get("title_size", TITLE_SIZE)
+    ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y1})\\fs{tsize}\\c{ass_color(YELLOW)}}}{title_line(t1)}")
+    ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y2})\\fs{tsize}\\c{ass_color(WHITE)}}}{title_line(t2)}")
 
     cap_y = CAPTION_Y
     for seg in timeline:
@@ -321,9 +353,13 @@ def main():
             if cd > ln + 0.05:
                 print(f"경고: {c['start']}~{c['end']} 클립이 {cd - ln:.2f}s 부족해 마지막 프레임을 늘립니다",
                       file=sys.stderr)
-            x = min(max(c["x"] - cw // 2, 0), 1920 - cw)
+            cx = c.get("x", "auto")
+            if cx == "auto":
+                cx = face_x(src, c["start"], c["start"] + cd)
+                print(f"얼굴 위치 자동: {c['start']:.2f}~{c['start'] + cd:.2f} → x={cx}", file=sys.stderr)
+            x = min(max(cx - cw // 2, 0), 1920 - cw)
             vs, lead, vd = avoid_slivers(c["start"], cd, cuts)
-            if lead > 0 or vd < cd - 0.01:
+            if lead > 0.02 or vd < cd - 0.02:
                 print(f"짧은 장면 조각 제거: {c['start']:.2f}~{c['start'] + cd:.2f} → 화면 {vs:.2f}~{vs + vd:.2f}",
                       file=sys.stderr)
             inputs += ["-ss", f"{vs:.3f}", "-t", f"{vd:.3f}", "-i", src]
