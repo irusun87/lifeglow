@@ -16,6 +16,7 @@ TTS 폴더(tools/typecast_tts.py 결과: 01.wav, 01.json …)가 있으면 문�
 """
 
 import argparse
+import shutil
 import json
 import os
 import re
@@ -417,6 +418,9 @@ def main():
                     "-map", "0:v", "-map", "1:a", "-t", f"{total:.3f}", "-c:v", "copy",
                     "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", args.out],
                    check=True)
+    # 검사용 부산물: 자막 파일과 BGM 없는 말소리 트랙 (tools/qc_short.py 가 사용)
+    shutil.copy(ass, Path(args.out).with_suffix(".ass"))
+    shutil.copy(voice, Path(args.out).with_suffix(".voice.wav"))
     print(f"완료: {args.out} ({total:.2f}s, {n}컷)")
 
 

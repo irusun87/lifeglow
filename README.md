@@ -12,3 +12,15 @@ python3 tools/make_short.py shorts/ep01_baejongok.json --out preview.mp4
 ```
 
 TTS 파일을 타입캐스트에서 직접 받은 경우 `01.wav` … 처럼 문장 순서대로 이름을 붙여 한 폴더에 두면 된다 (타임스탬프 json이 없으면 글자 수 비례로 자막 타이밍을 나눈다).
+
+## 완성본 검사 (tools/qc_short.py)
+
+`make_short.py` 는 결과 옆에 `<out>.ass`(자막)와 `<out>.voice.wav`(BGM 없는 말소리)를 남긴다. 납품 전에:
+
+```
+python3 tools/qc_short.py out.mp4
+```
+
+짧은 컷(0.5초 미만), 음량(-14 LUFS), 말하는데 자막이 비는 구간(말소리 재받아쓰기 대조), 자막·발음 불일치,
+의미 단위 끊김("발랐을 | 때"), 제목·자막·라벨 화면 넘침을 검사하고, 컷마다 한 장씩 모은 `<out>.qc.jpg` 를 만든다.
+오류가 있으면 종료 코드 1.
