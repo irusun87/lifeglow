@@ -12,12 +12,14 @@
 python3 tools/typecast_tts.py voices --gender female
 
 # 대본: 한 줄 = 한 문장
-python3 tools/typecast_tts.py speak script.txt --voice tc_xxxxxxxx --out out/ep01
+python3 tools/typecast_tts.py speak script.txt --out out/ep01
 ```
 
 결과물 (`--out` 폴더):
 - `01.wav`, `02.wav` … 문장별 음성, `01.json` … 문장별 단어 타임스탬프
-- `narration.wav` 문장 사이 0.15초 간격으로 합친 전체 내레이션
+- `narration.wav` 문장들을 이어 붙인 전체 내레이션
 - `narration.srt` 1~3어절 단위 자막 (영상 편집 단계에서 페이퍼로지 폰트로 렌더링)
 
-옵션: `--tempo`(기본 1.1), `--emotion`(normal/happy/toneup …), `--gap`, `--max-words`, `--max-chars`.
+기본값은 채널 설정 그대로 보이스 **수빈**, 감정 **일반(normal)**, 속도 **1.1배**, 문장 사이 쉼 **0초**.
+
+옵션: `--voice`(이름 또는 voice_id), `--tempo`(기본 1.1), `--emotion`(normal/happy/toneup …), `--gap`, `--max-words`, `--max-chars`.

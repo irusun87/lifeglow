@@ -8,7 +8,7 @@ API 키는 환경 변수 TYPECAST_API_KEY 에서만 읽는다 (코드/채팅에 
   python3 tools/typecast_tts.py voices
 
   # 대본(한 줄 = 한 문장)을 문장별 wav + 전체 합본 + 자막(SRT)으로 생성
-  python3 tools/typecast_tts.py speak script.txt --voice tc_xxx --out out/ep01
+  python3 tools/typecast_tts.py speak script.txt --out out/ep01   # 기본: 수빈/일반/1.1배속/쉼 0초
 """
 
 import argparse
@@ -24,6 +24,8 @@ from pathlib import Path
 
 API_BASE = "https://api.typecast.ai"
 DEFAULT_MODEL = "ssfm-v30"
+# 라이프글로우 기본 보이스 설정: 수빈 / 일반 / 1.1배속 / 문장 사이 쉼 0초
+DEFAULT_VOICE = "수빈"
 
 
 def api_key():
@@ -57,6 +59,20 @@ def cmd_voices(args):
     for v in voices:
         print(f"{v.get('voice_id')}\t{v.get('voice_name')}\t{v.get('gender', '')}\t{v.get('age', '')}"
               f"\t{','.join(v.get('use_cases') or [])}")
+
+
+def resolve_voice(voice, model):
+    """voice_id(tc_/uc_)는 그대로, 보이스 이름(예: 수빈)이면 목록에서 찾아 voice_id로 바꾼다."""
+    if voice.startswith(("tc_", "uc_")):
+        return voice
+    matches = [v for v in request("GET", "/v2/voices", query={"model": model})
+               if (v.get("voice_name") or "").strip() == voice]
+    if not matches:
+        sys.exit(f"'{voice}' 보이스를 찾지 못했습니다. `voices` 명령으로 이름을 확인하세요.")
+    if len(matches) > 1:
+        print(f"'{voice}' 보이스가 여러 개라 첫 번째를 사용: "
+              + ", ".join(v["voice_id"] for v in matches), file=sys.stderr)
+    return matches[0]["voice_id"]
 
 
 def synthesize(text, args):
@@ -105,6 +121,7 @@ def chunk_words(words, max_words, max_chars):
 
 
 def cmd_speak(args):
+    args.voice = resolve_voice(args.voice, args.model)
     lines = [l.strip() for l in Path(args.script).read_text(encoding="utf-8").splitlines() if l.strip()]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -128,7 +145,7 @@ def cmd_speak(args):
     inputs, filters = [], []
     for n, wav in enumerate(wavs):
         inputs += ["-i", str(wav)]
-        filters.append(f"[{n}:a]apad=pad_dur={args.gap}[a{n}]" if n < len(wavs) - 1 else f"[{n}:a]anull[a{n}]")
+        filters.append(f"[{n}:a]apad=pad_dur={args.gap}[a{n}]" if n < len(wavs) - 1 and args.gap > 0 else f"[{n}:a]anull[a{n}]")
     concat = "".join(f"[a{n}]" for n in range(len(wavs))) + f"concat=n={len(wavs)}:v=0:a=1[out]"
     subprocess.run(["ffmpeg", "-v", "error", "-y", *inputs,
                     "-filter_complex", ";".join(filters + [concat]), "-map", "[out]",
@@ -154,14 +171,14 @@ def main():
 
     s = sub.add_parser("speak", help="대본 → 음성 + 자막")
     s.add_argument("script", help="한 줄에 한 문장인 대본 파일")
-    s.add_argument("--voice", required=True, help="voice_id (tc_...)")
+    s.add_argument("--voice", default=DEFAULT_VOICE, help="보이스 이름(예: 수빈) 또는 voice_id (tc_...)")
     s.add_argument("--out", required=True)
     s.add_argument("--emotion", default="normal",
                    choices=["normal", "happy", "sad", "angry", "whisper", "toneup", "tonedown"])
     s.add_argument("--intensity", type=float, default=1.0)
     s.add_argument("--tempo", type=float, default=1.1, help="말 속도 (쇼츠는 1.1 전후)")
     s.add_argument("--pitch", type=int, default=0)
-    s.add_argument("--gap", type=float, default=0.15, help="문장 사이 무음(초)")
+    s.add_argument("--gap", type=float, default=0.0, help="문장 사이 무음(초)")
     s.add_argument("--max-words", type=int, default=3)
     s.add_argument("--max-chars", type=int, default=12)
     s.set_defaults(func=cmd_speak)
