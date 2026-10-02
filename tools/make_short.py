@@ -155,10 +155,15 @@ def face_x(src, start, end, default=960):
     return int(sorted(xs)[len(xs) // 2]) if xs else default
 
 
+# 앞 단어와 떨어지면 어색한 의존 명사 ("발랐을 | 때" 같은 끊김 방지)
+BOUND_NOUNS = {"때", "수", "것", "거", "정도", "듯", "줄", "만큼", "적", "뿐", "데"}
+
+
 def chunk_words(words, max_words=3, max_chars=12):
     chunk = []
     for w in words:
-        if chunk and (len(chunk) >= max_words or
+        bound = w["text"].rstrip(".,?!") in BOUND_NOUNS
+        if chunk and not bound and (len(chunk) >= max_words or
                       len(" ".join(x["text"] for x in chunk + [w])) > max_chars):
             yield chunk
             chunk = []
@@ -224,6 +229,15 @@ def build_ass(spec, timeline, total):
             for a, b, text in seg["captions"]:
                 ev(a, b, "CapY", f"{{\\pos({W // 2},{cap_y})}}{text}", layer=2)
             chunks = []
+        elif seg.get("lines"):
+            # 대본에 적은 의미 단위대로 자막을 끊는다 (단어 수로 TTS 단어 타이밍에 맞춤)
+            chunks, i = [], 0
+            for line in seg["lines"]:
+                n = len(line.split())
+                chunks.append(seg["words"][i:i + n])
+                i += n
+            if i != len(seg["words"]):
+                raise SystemExit(f"자막 줄 단어 수가 대본과 다름: {seg['text']}")
         else:
             chunks = list(chunk_words(seg["words"], max_chars=seg.get("max_chars", 12)))
         for i, chunk in enumerate(chunks):
@@ -305,8 +319,15 @@ def main():
             caps, off = [], t
             for p in parts:
                 for a, b, text in seg.get("captions", []):
-                    if p["start"] - 0.05 <= a < p["end"]:
-                        caps.append((off + a - p["start"], off + min(b, p["end"]) - p["start"], text))
+                    # 파트 경계를 넘는 자막은 다음 파트에서도 이어서 보여 준다
+                    lo, hi = max(a, p["start"]), min(b, p["end"])
+                    if hi - lo < 0.05:
+                        continue
+                    piece = (off + lo - p["start"], off + hi - p["start"], text)
+                    if caps and caps[-1][2] == text and abs(caps[-1][1] - piece[0]) < 0.05:
+                        caps[-1] = (caps[-1][0], piece[1], text)
+                    else:
+                        caps.append(piece)
                 off += p["end"] - p["start"]
             wav = work / f"orig_{len(timeline):02}.wav"
             extract_original(src, parts, wav)
