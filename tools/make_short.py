@@ -65,6 +65,28 @@ def estimate_words(text, rate):
     return out, total + 0.25
 
 
+def words_from_audio(text, wav, dur):
+    """타임스탬프 없는 TTS 파일: 쉼표 위치를 음성 속 쉼(무음)에 맞추고, 구간 안에서는 글자 수 비례."""
+    phrases = [ph.strip() for ph in re.split(r"(?<=,)\s+", text) if ph.strip()]
+    out = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(wav), "-af", "silencedetect=n=-40dB:d=0.1",
+                          "-f", "null", "-"], capture_output=True, text=True).stderr
+    starts = [float(x) for x in re.findall(r"silence_start: ([0-9.]+)", out)]
+    ends = [float(x) for x in re.findall(r"silence_end: ([0-9.]+)", out)]
+    pauses = [(a, b) for a, b in zip(starts, ends) if 0.05 < a and b < dur - 0.05]
+    pauses = sorted(sorted(pauses, key=lambda p: p[0] - p[1])[:len(phrases) - 1])
+    if len(pauses) != len(phrases) - 1:
+        pauses, phrases = [], [text]
+    bounds = [0.0] + [x for p in pauses for x in p] + [dur]
+    words = []
+    for k, ph in enumerate(phrases):
+        a, b = bounds[2 * k], bounds[2 * k + 1]
+        ws, _ = estimate_words(ph, 1.0)
+        span = ws[-1]["end"] or 1.0
+        words += [{"text": w["text"], "start": a + w["start"] / span * (b - a),
+                   "end": a + w["end"] / span * (b - a)} for w in ws]
+    return words
+
+
 def chunk_words(words, max_words=3, max_chars=12):
     chunk = []
     for w in words:
@@ -117,7 +139,7 @@ def build_ass(spec, timeline, total):
     cap_y = VIDEO_Y + VIDEO_H - 150
     for seg in timeline:
         s0, s1 = seg["start"], seg["end"]
-        chunks = list(chunk_words(seg["words"]))
+        chunks = list(chunk_words(seg["words"], max_chars=seg.get("max_chars", 12)))
         for i, chunk in enumerate(chunks):
             a = s0 + chunk[0]["start"]
             b = s0 + chunks[i + 1][0]["start"] if i + 1 < len(chunks) else s1
@@ -179,7 +201,7 @@ def main():
             d = duration(wav)
             words = json.loads(meta.read_text(encoding="utf-8"))["words"] if meta.exists() else None
             if not words:
-                words, _ = estimate_words(seg["text"], len(re.sub(r"[^\w]", "", seg["text"])) / d)
+                words = words_from_audio(seg["text"], wav, d)
             wavs.append(wav)
         else:
             words, d = estimate_words(seg["text"], args.rate)

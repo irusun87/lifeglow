@@ -17,7 +17,7 @@
        {"text": "토양", "color": "43A047"}, {"text": "토음", "color": "43A047"},
        {"text": "목양", "color": "8D5A3B"}, {"text": "목음", "color": "8D5A3B"},
        {"text": "수양", "color": "1E5BD8"}, {"text": "수음", "color": "1E5BD8"}]}]},
-    {"text": "배종옥은 그중에서 금음 체질.",
+    {"text": "배종옥은 그중에서 금음 체질.", "max_chars": 10,
      "clips": [{"start": 54.1, "end": 56.4, "x": 1080}],
      "overlay": [{"type": "chips", "at": 0.45, "size": 56, "items": [{"text": "금음 체질", "color": "E53935"}]}]},
     {"text": "금음 체질은 고기와 약, 그리고 화내는 걸 조심해야 한다는데요.",
