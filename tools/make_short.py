@@ -170,7 +170,11 @@ def main():
     timeline, t, wavs = [], 0.0, []
     for i, seg in enumerate(spec["segments"], 1):
         if args.tts:
-            wav = Path(args.tts) / f"{i:02}.wav"
+            found = [f for f in sorted(Path(args.tts).glob(f"{i:02}.*"))
+                     if f.suffix.lower() in (".wav", ".mp3", ".m4a")]
+            if not found:
+                sys.exit(f"{args.tts}에 {i:02}번 문장 음성(wav/mp3/m4a)이 없습니다")
+            wav = found[0]
             meta = Path(args.tts) / f"{i:02}.json"
             d = duration(wav)
             words = json.loads(meta.read_text(encoding="utf-8"))["words"] if meta.exists() else None
