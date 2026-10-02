@@ -139,6 +139,12 @@ def chunk_words(words, max_words=3, max_chars=12):
         yield chunk
 
 
+def rounded_rect(w, h, r):
+    """ASS 벡터 드로잉용 둥근 사각형 경로."""
+    return (f"m {r} 0 l {w - r} 0 b {w} 0 {w} 0 {w} {r} l {w} {h - r} b {w} {h} {w} {h} {w - r} {h} "
+            f"l {r} {h} b 0 {h} 0 {h} 0 {h - r} l 0 {r} b 0 0 0 0 {r} 0")
+
+
 def title_line(parts):
     """[[텍스트, 색]] 또는 "텍스트" → ASS 인라인 색 태그."""
     if isinstance(parts, str):
@@ -164,6 +170,10 @@ def build_ass(spec, timeline, total):
         f"{ass_color(BLACK)},0,0,0,0,100,100,0,0,3,8,0,5,0,0,0,1",
         f"Style: Big,{FONT},120,{ass_color(YELLOW)},{ass_color(YELLOW)},{ass_color(BLACK)},"
         f"{ass_color(BLACK, '60')},0,0,0,0,100,100,0,0,1,7,4,5,0,0,0,1",
+        f"Style: Draw,{FONT},10,{ass_color(BLACK)},{ass_color(BLACK)},{ass_color(BLACK)},"
+        f"{ass_color(BLACK)},0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1",
+        f"Style: Label,{FONT},52,{ass_color(WHITE)},{ass_color(WHITE)},{ass_color(BLACK)},"
+        f"{ass_color(BLACK)},0,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1",
         "", "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
@@ -193,6 +203,26 @@ def build_ass(spec, timeline, total):
         for ov in seg.get("overlay", []):
             a = s0 + ov.get("at", 0.0) * (s1 - s0)
             s1 = seg["start"] + ov.get("until", 1.0) * (seg["end"] - seg["start"])
+            if "at_word" in ov:
+                hit = [w for w in seg["words"] if w["text"].startswith(ov["at_word"])]
+                if hit:
+                    a = seg["start"] + hit[0]["start"]
+            if "at_sec" in ov:
+                a = seg["start"] + ov["at_sec"]
+            if ov["type"] == "label":
+                # 반투명 둥근 라벨: 짧게(기본 1.8초) 떴다가 사라진다
+                b = a + ov.get("dur", 1.8)
+                size = ov.get("size", 52)
+                parts = ov["text"] if isinstance(ov["text"], list) else [[ov["text"], WHITE]]
+                plain = "".join(t for t, _ in parts)
+                tw = sum(size * (0.95 if ord(ch) > 0x3000 else 0.55) for ch in plain)
+                bw, bh = int(tw + size * 1.3), int(size * 1.75)
+                y = ov.get("y", VIDEO_Y + 103)
+                fade = "\\fad(150,150)"
+                ev(a, b, "Draw", f"{{\\pos({W // 2 - bw // 2},{y - bh // 2})\\p1\\c{ass_color(BLACK)}"
+                                 f"\\1a&H50&{fade}}}{rounded_rect(bw, bh, bh // 2)}", layer=4)
+                ev(a, b, "Label", f"{{\\pos({W // 2},{y})\\fs{size}{fade}}}{title_line(parts)}", layer=5)
+                continue
             if ov["type"] == "chips":
                 items, per_row = ov["items"], ov.get("per_row", 4)
                 y0 = ov.get("y", cap_y - 170)

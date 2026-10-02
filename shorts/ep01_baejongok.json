@@ -36,9 +36,18 @@
    ],
    "overlay": [
     {
-     "type": "big",
-     "text": "48kg",
-     "at": 0.05
+     "type": "label",
+     "text": [
+      [
+       "48kg",
+       "FCF103"
+      ],
+      [
+       " 유지 중",
+       "FFFFFF"
+      ]
+     ],
+     "at_word": "유지하는"
     }
    ]
   },
@@ -110,15 +119,33 @@
    ],
    "overlay": [
     {
-     "type": "chips",
-     "at": 0.0,
-     "size": 56,
-     "items": [
-      {
-       "text": "금음 체질",
-       "color": "E53935"
-      }
-     ]
+     "type": "label",
+     "text": [
+      [
+       "금음",
+       "FCF103"
+      ],
+      [
+       " 체질",
+       "FFFFFF"
+      ]
+     ],
+     "at_sec": 1.0
+    },
+    {
+     "type": "label",
+     "text": [
+      [
+       "조심할 것 ",
+       "FFFFFF"
+      ],
+      [
+       "고기 · 약 · 화",
+       "FCF103"
+      ]
+     ],
+     "at_sec": 4.6,
+     "dur": 2.0
     }
    ]
   },
@@ -185,10 +212,18 @@
    ],
    "overlay": [
     {
-     "type": "big",
-     "text": "8년",
-     "at": 0.4,
-     "until": 0.66
+     "type": "label",
+     "text": [
+      [
+       "8년",
+       "FCF103"
+      ],
+      [
+       " 고기 끊음",
+       "FFFFFF"
+      ]
+     ],
+     "at_sec": 3.15
     }
    ]
   },
@@ -223,25 +258,49 @@
    ],
    "overlay": [
     {
-     "type": "chips",
-     "at": 0.0,
-     "stagger": 1.3,
-     "size": 50,
-     "per_row": 1,
-     "items": [
-      {
-       "text": "안 맞는 음식 줄이기",
-       "color": "8D5A3B"
-      },
-      {
-       "text": "약에 기대지 않기",
-       "color": "1E5BD8"
-      },
-      {
-       "text": "화 다스리기",
-       "color": "E53935"
-      }
-     ]
+     "type": "label",
+     "text": [
+      [
+       "1 ",
+       "FCF103"
+      ],
+      [
+       "안 맞는 음식 줄이기",
+       "FFFFFF"
+      ]
+     ],
+     "at_word": "나한테",
+     "dur": 1.4
+    },
+    {
+     "type": "label",
+     "text": [
+      [
+       "2 ",
+       "FCF103"
+      ],
+      [
+       "약에 기대지 않기",
+       "FFFFFF"
+      ]
+     ],
+     "at_word": "약에",
+     "dur": 1.4
+    },
+    {
+     "type": "label",
+     "text": [
+      [
+       "3 ",
+       "FCF103"
+      ],
+      [
+       "화 다스리기",
+       "FFFFFF"
+      ]
+     ],
+     "at_word": "화",
+     "dur": 1.4
     }
    ]
   },
