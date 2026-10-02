@@ -128,8 +128,12 @@ def avoid_slivers(start, dur, cuts, min_shot=0.5):
     return vs, vs - start, max(ve - vs, 0.04)
 
 
-def face_x(src, start, end, default=960):
-    """클립 구간에서 가장 큰 얼굴의 가로 중심(원본 픽셀)을 찾는다. OpenCV가 없거나 못 찾으면 default."""
+def face_x(src, start, end, default=None):
+    """클립 구간에서 가장 큰 얼굴의 가로 중심(원본 픽셀)을 찾는다. OpenCV가 없거나 못 찾으면 화면 가운데."""
+    src_w = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                "stream=width", "-of", "csv=p=0", src], capture_output=True, text=True).stdout)
+    if default is None:
+        default = src_w // 2
     try:
         import cv2
         import numpy as np
@@ -152,7 +156,7 @@ def face_x(src, start, end, default=960):
             faces += [(960 - x - w, y, w, h) for x, y, w, h in prof.detectMultiScale(g[:, ::-1].copy(), 1.1, 5, minSize=(50, 50))]
         if faces:
             x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
-            xs.append((x + w / 2) * 2)
+            xs.append((x + w / 2) * src_w / 960)
     return int(sorted(xs)[len(xs) // 2]) if xs else default
 
 
@@ -366,6 +370,8 @@ def main():
     inputs, filters, labels, n = [], [], [], 0
     last = max(c["end"] for seg in timeline for c in seg["clips"]) + 1
     cuts = scene_cuts(src, last)
+    src_w = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                "stream=width", "-of", "csv=p=0", src], capture_output=True, text=True).stdout)
     for seg in timeline:
         d = seg["end"] - seg["start"]
         clips = seg["clips"]
@@ -379,7 +385,7 @@ def main():
             if cx == "auto":
                 cx = face_x(src, c["start"], c["start"] + cd)
                 print(f"얼굴 위치 자동: {c['start']:.2f}~{c['start'] + cd:.2f} → x={cx}", file=sys.stderr)
-            x = min(max(cx - cw // 2, 0), 1920 - cw)
+            x = min(max(cx - cw // 2, 0), src_w - cw)
             vs, lead, vd = avoid_slivers(c["start"], cd, cuts)
             if lead > 0.02 or vd < cd - 0.02:
                 print(f"짧은 장면 조각 제거: {c['start']:.2f}~{c['start'] + cd:.2f} → 화면 {vs:.2f}~{vs + vd:.2f}",
