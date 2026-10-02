@@ -104,6 +104,26 @@ def extract_original(src, parts, out, lufs=-16):
                    check=True)
 
 
+def scene_cuts(src, until, threshold=6.0):
+    """원본 영상의 장면 전환 시각(초) 목록."""
+    out = subprocess.run(["ffmpeg", "-hide_banner", "-t", f"{until:.2f}", "-i", src, "-an", "-vf",
+                          f"scale=480:-2,scdet=threshold={threshold}", "-f", "null", "-"],
+                         capture_output=True, text=True).stderr
+    return [float(x) for x in re.findall(r"lavfi\.scd\.time: ([0-9.]+)", out)]
+
+
+def avoid_slivers(start, dur, cuts, min_shot=0.5):
+    """클립 앞뒤에 min_shot초보다 짧은 장면 조각이 걸리면 그 조각 대신 이웃 장면의 첫/끝 프레임을 늘린다.
+    화면만 바뀌고 길이는 그대로라 원본 발언 구간의 소리 싱크가 유지된다. → (영상 시작, 앞 패딩, 영상 길이)"""
+    inner = [c for c in cuts if start < c < start + dur]
+    vs, ve = start, start + dur
+    if inner and inner[0] - start < min_shot:
+        vs = inner[0]
+    if inner and start + dur - inner[-1] < min_shot and inner[-1] > vs:
+        ve = inner[-1]
+    return vs, vs - start, max(ve - vs, 0.04)
+
+
 def chunk_words(words, max_words=3, max_chars=12):
     chunk = []
     for w in words:
@@ -260,6 +280,8 @@ def main():
     ch = crop["h"]
     cw = round(ch * W / VIDEO_H) // 2 * 2
     inputs, filters, labels, n = [], [], [], 0
+    last = max(c["end"] for seg in timeline for c in seg["clips"]) + 1
+    cuts = scene_cuts(src, last)
     for seg in timeline:
         d = seg["end"] - seg["start"]
         clips = seg["clips"]
@@ -270,11 +292,16 @@ def main():
                 print(f"경고: {c['start']}~{c['end']} 클립이 {cd - ln:.2f}s 부족해 마지막 프레임을 늘립니다",
                       file=sys.stderr)
             x = min(max(c["x"] - cw // 2, 0), 1920 - cw)
-            inputs += ["-ss", f"{c['start']:.3f}", "-t", f"{cd + 0.5:.3f}", "-i", src]
+            vs, lead, vd = avoid_slivers(c["start"], cd, cuts)
+            if lead > 0 or vd < cd - 0.01:
+                print(f"짧은 장면 조각 제거: {c['start']:.2f}~{c['start'] + cd:.2f} → 화면 {vs:.2f}~{vs + vd:.2f}",
+                      file=sys.stderr)
+            inputs += ["-ss", f"{vs:.3f}", "-t", f"{vd:.3f}", "-i", src]
             pre = f"delogo={spec['delogo']}," if spec.get("delogo") else ""
             filters.append(
                 f"[{n}:v]{pre}crop={cw}:{ch}:{x}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
-                f"fps={FPS},setsar=1,tpad=stop_mode=clone:stop_duration=2,trim=duration={cd:.3f},"
+                f"fps={FPS},setsar=1,tpad=start_mode=clone:start_duration={lead:.3f}:stop_mode=clone:stop_duration=3,"
+                f"trim=duration={cd:.3f},"
                 f"setpts=PTS-STARTPTS[v{n}]")
             labels.append(f"[v{n}]")
             n += 1
