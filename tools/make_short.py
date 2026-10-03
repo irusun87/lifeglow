@@ -137,7 +137,8 @@ def face_x(src, start, end, default=None):
     try:
         import cv2
         import numpy as np
-    except ImportError:
+        cv2.CascadeClassifier  # OpenCV 5.x 에는 없음 → 화면 가운데로
+    except (ImportError, AttributeError):
         return default
     casc = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     prof = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_profileface.xml")
