@@ -31,8 +31,9 @@ from pathlib import Path
 
 API_BASE = "https://api.elevenlabs.io"
 DEFAULT_MODEL = "eleven_multilingual_v2"
-# 라이프글로우 기본: 1.1배속 / 문장 사이 쉼 0초 (보이스는 테스트 후 정한다)
-DEFAULT_VOICE = os.environ.get("ELEVENLABS_VOICE")
+# 라이프글로우 기본: 1.1배속 / 문장 사이 쉼 0초
+# 채널 기본 음성: Sian (2026-10-03 이호준 결정, 속도 1.1)
+DEFAULT_VOICE = os.environ.get("ELEVENLABS_VOICE", "5n5gqmaQi9Ewevrz7bOS")
 
 
 def api_key():
