@@ -57,6 +57,7 @@ def main():
     p.add_argument("--duck", type=float, default=DEFAULT_DUCK,
                    help="말소리 구간 추가 감쇠 dB (기본 4, 0이면 덕킹 없음)")
     p.add_argument("--bgm-start", type=float, default=0.0, help="BGM을 몇 초 지점부터 쓸지")
+    p.add_argument("--sfx", help="효과음 트랙 (make_short.py가 만든 wav, 이미 음량 조절됨). 덕킹 없이 그대로 얹는다")
     p.add_argument("--fade-in", type=float, default=0.3)
     p.add_argument("--fade-out", type=float, default=1.5)
     args = p.parse_args()
@@ -69,8 +70,13 @@ def main():
     # 말소리 구간(무음 감지)에서만 BGM을 duck dB 더 낮춘다. 컴프레서보다 결과가 예측 가능하다.
     filt = duck_by_envelope(args, dur) if args.duck > 0 else mix_filter_plain(args, dur)
 
+    extra = []
+    if args.sfx:
+        filt = filt.replace("[mix]", "[vb]") + ";[2:a]aformat=channel_layouts=stereo[sfx];" \
+               "[vb][sfx]amix=inputs=2:duration=first:normalize=0[mix]"
+        extra = ["-i", args.sfx]
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", args.voice, "-stream_loop", "-1", "-i", args.bgm,
-                    "-filter_complex", filt, "-map", "[mix]", "-t", f"{dur}", "-ar", "48000", tmp],
+                    *extra, "-filter_complex", filt, "-map", "[mix]", "-t", f"{dur}", "-ar", "48000", tmp],
                    check=True)
     stats = loudnorm(tmp, args.out)
     os.remove(tmp)

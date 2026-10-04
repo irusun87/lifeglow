@@ -33,6 +33,11 @@ CAPTION_Y = 770
 FONT_DIR = os.environ.get("LIFEGLOW_FONTS", "/mnt/project-files/assets/fonts/paperlogy")
 FONT = "Paperlogy 8 ExtraBold"
 TOOLS = Path(__file__).resolve().parent
+# 효과음 (ElevenLabs sound-generation으로 한 번 만들어 공유 폴더에 둠, 공개 저장소에는 올리지 않음)
+SFX_DIR = Path(os.environ.get("LIFEGLOW_SFX", "/mnt/project-files/assets/sfx"))
+# 효과음별 음량(dB, 파일 피크 -1 dBFS 기준)과 소리의 정점까지 걸리는 시간(초).
+# 우쉬는 정점이 컷에 맞도록 앞당겨 튼다.
+SFX = {"pop": (-6, 0.0), "whoosh": (-8, 0.1), "ding": (-5, 0.0)}
 
 YELLOW, WHITE, CYAN, BLACK = "FCF103", "FFFFFF", "00FEFD", "000000"  # 기존 채널 영상 실측 색
 
@@ -194,6 +199,57 @@ def title_line(parts):
     return "".join(f"{{\\c{ass_color(c)}}}{t}" for t, c in parts)
 
 
+def overlay_start(seg, ov):
+    """포인트 그래픽이 뜨는 시각(초, 영상 전체 기준)."""
+    a = seg["start"] + ov.get("at", 0.0) * (seg["end"] - seg["start"])
+    if "at_word" in ov:
+        hit = [w for w in seg["words"] if w["text"].startswith(ov["at_word"])]
+        if hit:
+            a = seg["start"] + hit[0]["start"]
+    if "at_sec" in ov:
+        a = seg["start"] + ov["at_sec"]
+    return a
+
+
+def sfx_events(spec, timeline):
+    """효과음 목록 [(시각, 이름)].
+    - 라벨·칩·큰 글씨가 뜰 때 "pop", 영상 아래 "↓ 재료 확인하기" 라벨은 "ding"
+    - 내레이션에서 원본 발언으로 넘어가는 컷에 "whoosh"
+    overlay의 "sfx"로 바꾸거나 null로 끌 수 있고, 스펙 최상위 "sfx": false면 전부 끈다."""
+    if spec.get("sfx", True) is False:
+        return []
+    events = []
+    for i, seg in enumerate(timeline):
+        if (seg.get("type") == "original" and i > 0 and timeline[i - 1].get("type") != "original"
+                and seg.get("sfx", "whoosh")):
+            events.append((seg["start"], seg.get("sfx", "whoosh")))
+        for ov in seg.get("overlay", []):
+            cta = ov.get("y", 0) >= VIDEO_Y + VIDEO_H
+            name = ov.get("sfx", "ding" if cta else "pop")
+            if name:
+                events.append((overlay_start(seg, ov), name))
+    return sorted(events)
+
+
+def render_sfx(events, total, out):
+    """효과음들을 제자리에 놓은 트랙(wav, total초)을 만든다. 효과음이 없으면 None."""
+    events = [(t, n) for t, n in events if (SFX_DIR / f"{n}.wav").exists()]
+    if not events:
+        return None
+    ins, filt = [], []
+    for i, (t, name) in enumerate(events):
+        gain, peak = SFX.get(name, (-15, 0.0))
+        ins += ["-i", str(SFX_DIR / f"{name}.wav")]
+        delay = max(int(round((t - peak) * 1000)), 0)
+        filt.append(f"[{i}:a]aformat=sample_rates=48000:channel_layouts=mono,volume={gain}dB,"
+                    f"adelay={delay}:all=1[s{i}]")
+    filt.append("".join(f"[s{i}]" for i in range(len(events))) +
+                f"amix=inputs={len(events)}:normalize=0,apad=whole_dur={total:.3f}")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", ";".join(filt),
+                    "-t", f"{total:.3f}", str(out)], check=True)
+    return out
+
+
 def build_ass(spec, timeline, total):
     fs = spec.get("caption_size", 60)
     lines = [
@@ -253,14 +309,8 @@ def build_ass(spec, timeline, total):
             ev(a, b, "Cap", f"{{\\pos({W // 2},{cap_y})}}{text}", layer=2)
 
         for ov in seg.get("overlay", []):
-            a = s0 + ov.get("at", 0.0) * (s1 - s0)
+            a = overlay_start(seg, ov)
             s1 = seg["start"] + ov.get("until", 1.0) * (seg["end"] - seg["start"])
-            if "at_word" in ov:
-                hit = [w for w in seg["words"] if w["text"].startswith(ov["at_word"])]
-                if hit:
-                    a = seg["start"] + hit[0]["start"]
-            if "at_sec" in ov:
-                a = seg["start"] + ov["at_sec"]
             if ov["type"] == "label":
                 # 반투명 둥근 라벨: 짧게(기본 1.8초) 떴다가 사라진다
                 b = a + ov.get("dur", 1.8)
@@ -309,6 +359,7 @@ def main():
     p.add_argument("--tts", help="typecast_tts.py 결과 폴더 (01.wav, 01.json …)")
     p.add_argument("--out", required=True)
     p.add_argument("--rate", type=float, default=7.0, help="TTS 없을 때 초당 글자 수 추정치")
+    p.add_argument("--no-sfx", action="store_true", help="효과음 없이 렌더링")
     args = p.parse_args()
 
     spec = json.loads(Path(args.spec).read_text(encoding="utf-8"))
@@ -418,7 +469,12 @@ def main():
                     pre + "".join(f"[a{i}]" for i in range(len(voices))) + f"concat=n={len(voices)}:v=0:a=1",
                     str(voice)], check=True)
     mix = work / "mix.wav"
-    subprocess.run([sys.executable, str(TOOLS / "mix_audio.py"), str(voice), "--out", str(mix)], check=True)
+    sfx = render_sfx(sfx_events(spec, timeline), total, work / "sfx.wav") if not args.no_sfx else None
+    if sfx:
+        print(f"효과음 {len(sfx_events(spec, timeline))}개: " +
+              ", ".join(f"{t:.1f}s {n}" for t, n in sfx_events(spec, timeline)))
+    subprocess.run([sys.executable, str(TOOLS / "mix_audio.py"), str(voice), "--out", str(mix),
+                    *(["--sfx", str(sfx)] if sfx else [])], check=True)
     audio, afilter = ["-i", str(mix)], []
 
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), *audio, *afilter,
