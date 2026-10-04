@@ -433,7 +433,7 @@ def main():
             if cd > ln + 0.05:
                 print(f"경고: {c['start']}~{c['end']} 클립이 {cd - ln:.2f}s 부족해 마지막 프레임을 늘립니다",
                       file=sys.stderr)
-            cx = c.get("x", "auto")
+            cx = c.get("x", 0 if c.get("image") else "auto")
             if cx == "auto":
                 cx = face_x(src, c["start"], c["start"] + cd)
                 print(f"얼굴 위치 자동: {c['start']:.2f}~{c['start'] + cd:.2f} → x={cx}", file=sys.stderr)
@@ -451,6 +451,20 @@ def main():
                 print(f"짧은 장면 조각 제거: {c['start']:.2f}~{c['start'] + cd:.2f} → 화면 {vs:.2f}~{vs + vd:.2f}",
                       file=sys.stderr)
             pre = f"delogo={spec['delogo']}," if spec.get("delogo") else ""
+            if c.get("image"):
+                # 외부 사진(픽사베이 등 무료 자료): 화면을 꽉 채우게 자르고 천천히 확대. fx = 가로 중심(0~1)
+                frames = max(int(round(cd * FPS)), 1)
+                inputs += ["-loop", "1", "-t", f"{cd + 0.5:.3f}", "-i", c["image"]]
+                filters.append(
+                    f"[{n}:v]trim=end_frame=1,scale={W * 2}:{VIDEO_H * 2}:force_original_aspect_ratio=increase:"
+                    f"flags=lanczos,crop={W * 2}:{VIDEO_H * 2}:'(iw-{W * 2})*{c.get('fx', 0.5)}':"
+                    f"'(ih-{VIDEO_H * 2})*{c.get('fy', 0.5)}',setsar=1,"
+                    f"zoompan=z='1+{c.get('zoom', 0.08)}*on/{frames}':d={frames}:"
+                    f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{VIDEO_H}:fps={FPS},"
+                    f"trim=duration={cd:.3f},setpts=PTS-STARTPTS[v{n}]")
+                labels.append(f"[v{n}]")
+                n += 1
+                continue
             if c.get("still"):
                 # 정지 화면 + 천천히 확대(켄 번스): 움직이는 원본에 자막·다른 장면이 섞일 때 깨끗한 한 장면만 쓴다
                 frames = max(int(round(cd * FPS)), 1)

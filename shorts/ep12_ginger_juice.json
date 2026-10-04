@@ -97,9 +97,9 @@
      "x": "auto"
     },
     {
-     "start": 312,
-     "end": 315,
-     "x": 960
+     "start": 0,
+     "end": 3,
+     "image": "/mnt/project-files/assets/stock/pixabay_5108742.jpg"
     }
    ],
    "overlay": [
@@ -182,16 +182,15 @@
    ],
    "clips": [
     {
-     "start": 255.3,
-     "end": 257.3,
-     "x": 1300,
-     "still": true
+     "start": 0,
+     "end": 2,
+     "image": "/mnt/project-files/assets/stock/pixabay_6868774.jpg"
     },
     {
-     "start": 255.3,
-     "end": 257.3,
-     "x": 640,
-     "still": true
+     "start": 0,
+     "end": 2,
+     "image": "/mnt/project-files/assets/stock/pixabay_10410096.jpg",
+     "fx": 0.6
     }
    ]
   },
@@ -244,14 +243,13 @@
    "clips": [
     {
      "start": 390.5,
-     "end": 393.2,
+     "end": 392.4,
      "x": 960
     },
     {
-     "start": 134.5,
-     "end": 137,
-     "x": 1150,
-     "still": true
+     "start": 0,
+     "end": 3.1,
+     "image": "/mnt/project-files/assets/stock/pixabay_4896003.jpg"
     }
    ],
    "overlay": [
