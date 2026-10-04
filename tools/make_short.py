@@ -450,8 +450,21 @@ def main():
             if lead > 0.02 or vd < cd - 0.02:
                 print(f"짧은 장면 조각 제거: {c['start']:.2f}~{c['start'] + cd:.2f} → 화면 {vs:.2f}~{vs + vd:.2f}",
                       file=sys.stderr)
-            inputs += ["-ss", f"{vs:.3f}", "-t", f"{vd:.3f}", "-i", src]
             pre = f"delogo={spec['delogo']}," if spec.get("delogo") else ""
+            if c.get("still"):
+                # 정지 화면 + 천천히 확대(켄 번스): 움직이는 원본에 자막·다른 장면이 섞일 때 깨끗한 한 장면만 쓴다
+                frames = max(int(round(cd * FPS)), 1)
+                inputs += ["-ss", f"{c['start']:.3f}", "-i", src]
+                filters.append(
+                    f"[{n}:v]trim=end_frame=1,{pre}crop={cw}:{ch}:{x}:{c.get('y', crop['y'])},"
+                    f"scale={W * 2}:{VIDEO_H * 2}:flags=lanczos,setsar=1,"
+                    f"zoompan=z='1+{c.get('zoom', 0.08)}*on/{frames}':d={frames}:"
+                    f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{VIDEO_H}:fps={FPS},"
+                    f"trim=duration={cd:.3f},setpts=PTS-STARTPTS[v{n}]")
+                labels.append(f"[v{n}]")
+                n += 1
+                continue
+            inputs += ["-ss", f"{vs:.3f}", "-t", f"{vd:.3f}", "-i", src]
             filters.append(
                 f"[{n}:v]{pre}crop={cw}:{ch}:{xexpr}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
                 f"fps={FPS},setsar=1,tpad=start_mode=clone:start_duration={lead:.3f}:stop_mode=clone:stop_duration=3,"
