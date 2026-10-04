@@ -438,6 +438,11 @@ def main():
                 cx = face_x(src, c["start"], c["start"] + cd)
                 print(f"얼굴 위치 자동: {c['start']:.2f}~{c['start'] + cd:.2f} → x={cx}", file=sys.stderr)
             x = min(max(cx - cw // 2, 0), src_w - cw)
+            xexpr = str(x)
+            if "x_to" in c:
+                # 인물이 화면 밖으로 움직이면 컷 안에서 크롭 위치를 x → x_to 로 천천히 옮긴다(패닝)
+                x1 = min(max(c["x_to"] - cw // 2, 0), src_w - cw)
+                xexpr = f"'{x}+({x1 - x})*min(t/{max(cd, 0.1):.3f},1)'"
             vs, lead, vd = avoid_slivers(c["start"], cd, cuts)
             if c.get("hold"):
                 # 앞부분 화면이 쓸 수 없을 때(검은 화면, 다른 인물): 소리는 그대로 두고 hold초 뒤 첫 프레임으로 채운다
@@ -448,7 +453,7 @@ def main():
             inputs += ["-ss", f"{vs:.3f}", "-t", f"{vd:.3f}", "-i", src]
             pre = f"delogo={spec['delogo']}," if spec.get("delogo") else ""
             filters.append(
-                f"[{n}:v]{pre}crop={cw}:{ch}:{x}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
+                f"[{n}:v]{pre}crop={cw}:{ch}:{xexpr}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
                 f"fps={FPS},setsar=1,tpad=start_mode=clone:start_duration={lead:.3f}:stop_mode=clone:stop_duration=3,"
                 f"trim=duration={cd:.3f},"
                 f"setpts=PTS-STARTPTS[v{n}]")
