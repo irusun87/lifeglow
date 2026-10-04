@@ -113,7 +113,7 @@ def extract_original(src, parts, out, lufs=-16):
                    check=True)
 
 
-def scene_cuts(src, until, threshold=6.0):
+def scene_cuts(src, until, threshold=4.0):
     """원본 영상의 장면 전환 시각(초) 목록."""
     out = subprocess.run(["ffmpeg", "-hide_banner", "-t", f"{until:.2f}", "-i", src, "-an", "-vf",
                           f"scale=480:-2,scdet=threshold={threshold}", "-f", "null", "-"],
@@ -439,6 +439,9 @@ def main():
                 print(f"얼굴 위치 자동: {c['start']:.2f}~{c['start'] + cd:.2f} → x={cx}", file=sys.stderr)
             x = min(max(cx - cw // 2, 0), src_w - cw)
             vs, lead, vd = avoid_slivers(c["start"], cd, cuts)
+            if c.get("hold"):
+                # 앞부분 화면이 쓸 수 없을 때(검은 화면, 다른 인물): 소리는 그대로 두고 hold초 뒤 첫 프레임으로 채운다
+                vs, lead, vd = c["start"] + c["hold"], c["hold"], max(cd - c["hold"], 0.04)
             if lead > 0.02 or vd < cd - 0.02:
                 print(f"짧은 장면 조각 제거: {c['start']:.2f}~{c['start'] + cd:.2f} → 화면 {vs:.2f}~{vs + vd:.2f}",
                       file=sys.stderr)
