@@ -31,7 +31,7 @@ from pathlib import Path
 
 API_BASE = "https://api.elevenlabs.io"
 DEFAULT_MODEL = "eleven_multilingual_v2"
-# 라이프글로우 기본: 1.1배속 / 문장 사이 쉼 0초
+# 라이프글로우 기본: 1.15배속 (2026-10-06 이호준 결정) / 문장 사이 쉼 0초
 # 채널 기본 음성: Sian (2026-10-03 이호준 결정, 속도 1.1)
 DEFAULT_VOICE = os.environ.get("ELEVENLABS_VOICE", "5n5gqmaQi9Ewevrz7bOS")
 
@@ -275,7 +275,7 @@ def main():
     s.add_argument("--out", required=True)
     s.add_argument("--model", default=DEFAULT_MODEL,
                    help="eleven_multilingual_v2(기본, 1자=1크레딧) / eleven_flash_v2_5(빠름, 1자=0.5크레딧)")
-    s.add_argument("--speed", type=float, default=1.1, help="말 속도 0.7~1.2 (쇼츠는 1.1 전후)")
+    s.add_argument("--speed", type=float, default=1.15, help="말 속도 0.7~1.2 (쇼츠 기본 1.15)")
     s.add_argument("--stability", type=float, default=0.5)
     s.add_argument("--similarity", type=float, default=0.75)
     s.add_argument("--style", type=float, default=0.0)
