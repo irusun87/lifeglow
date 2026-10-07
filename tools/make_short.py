@@ -284,7 +284,8 @@ def build_ass(spec, timeline, total):
     ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y1})\\fs{tsize}\\c{ass_color(YELLOW)}}}{title_line(t1)}")
     ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y2})\\fs{tsize}\\c{ass_color(WHITE)}}}{title_line(t2)}")
 
-    cap_y = CAPTION_Y
+    # 얼굴·제품이 화면 가운데를 채우는 편은 자막을 영상 아래 검은 여백으로 내린다 (스펙 "caption_y")
+    cap_y = spec.get("caption_y", CAPTION_Y)
     for seg in timeline:
         s0, s1 = seg["start"], seg["end"]
         if seg.get("type") == "original":
