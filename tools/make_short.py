@@ -434,15 +434,18 @@ def main():
             if cd > ln + 0.05:
                 print(f"경고: {c['start']}~{c['end']} 클립이 {cd - ln:.2f}s 부족해 마지막 프레임을 늘립니다",
                       file=sys.stderr)
+            # 클립마다 크롭 높이를 바꿀 수 있다 ("h"): 손에 든 제품을 숨기려고 얼굴 쪽만 확대할 때
+            ch_c = c.get("h", ch)
+            cw_c = round(ch_c * W / VIDEO_H) // 2 * 2
             cx = c.get("x", 0 if c.get("image") else "auto")
             if cx == "auto":
                 cx = face_x(src, c["start"], c["start"] + cd)
                 print(f"얼굴 위치 자동: {c['start']:.2f}~{c['start'] + cd:.2f} → x={cx}", file=sys.stderr)
-            x = min(max(cx - cw // 2, 0), src_w - cw)
+            x = min(max(cx - cw_c // 2, 0), src_w - cw_c)
             xexpr = str(x)
             if "x_to" in c:
                 # 인물이 화면 밖으로 움직이면 컷 안에서 크롭 위치를 x → x_to 로 천천히 옮긴다(패닝)
-                x1 = min(max(c["x_to"] - cw // 2, 0), src_w - cw)
+                x1 = min(max(c["x_to"] - cw_c // 2, 0), src_w - cw_c)
                 xexpr = f"'{x}+({x1 - x})*min(t/{max(cd, 0.1):.3f},1)'"
             vs, lead, vd = avoid_slivers(c["start"], cd, cuts)
             if c.get("hold"):
@@ -471,7 +474,7 @@ def main():
                 frames = max(int(round(cd * FPS)), 1)
                 inputs += ["-ss", f"{c['start']:.3f}", "-i", src]
                 filters.append(
-                    f"[{n}:v]trim=end_frame=1,{pre}crop={cw}:{ch}:{x}:{c.get('y', crop['y'])},"
+                    f"[{n}:v]trim=end_frame=1,{pre}crop={cw_c}:{ch_c}:{x}:{c.get('y', crop['y'])},"
                     f"scale={W * 2}:{VIDEO_H * 2}:flags=lanczos,setsar=1,"
                     f"zoompan=z='1+{c.get('zoom', 0.08)}*on/{frames}':d={frames}:"
                     f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{VIDEO_H}:fps={FPS},"
@@ -481,7 +484,7 @@ def main():
                 continue
             inputs += ["-ss", f"{vs:.3f}", "-t", f"{vd:.3f}", "-i", src]
             filters.append(
-                f"[{n}:v]{pre}crop={cw}:{ch}:{xexpr}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
+                f"[{n}:v]{pre}crop={cw_c}:{ch_c}:{xexpr}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
                 f"fps={FPS},setsar=1,tpad=start_mode=clone:start_duration={lead:.3f}:stop_mode=clone:stop_duration=3,"
                 f"trim=duration={cd:.3f},"
                 f"setpts=PTS-STARTPTS[v{n}]")
