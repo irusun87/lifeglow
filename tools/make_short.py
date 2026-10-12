@@ -448,6 +448,9 @@ def main():
                 x1 = min(max(c["x_to"] - cw_c // 2, 0), src_w - cw_c)
                 xexpr = f"'{x}+({x1 - x})*min(t/{max(cd, 0.1):.3f},1)'"
             vs, lead, vd = avoid_slivers(c["start"], cd, cuts)
+            if "vstart" in c:
+                # 소리는 이 구간 그대로, 화면만 다른 시각에서 가져온다 (손에 든 제품·원본 큰 자막을 피할 때)
+                vs, lead, vd = c["vstart"], 0.0, cd
             if c.get("hold"):
                 # 앞부분 화면이 쓸 수 없을 때(검은 화면, 다른 인물): 소리는 그대로 두고 hold초 뒤 첫 프레임으로 채운다
                 vs, lead, vd = c["start"] + c["hold"], c["hold"], max(cd - c["hold"], 0.04)
