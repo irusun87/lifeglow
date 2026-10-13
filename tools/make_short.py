@@ -439,7 +439,9 @@ def main():
             cw_c = round(ch_c * W / VIDEO_H) // 2 * 2
             cx = c.get("x", 0 if c.get("image") else "auto")
             if cx == "auto":
-                cx = face_x(src, c["start"], c["start"] + cd)
+                # vstart 가 있으면 실제로 보여 줄 화면 구간에서 얼굴을 찾는다
+                fs = c.get("vstart", c["start"])
+                cx = face_x(src, fs, fs + cd)
                 print(f"얼굴 위치 자동: {c['start']:.2f}~{c['start'] + cd:.2f} → x={cx}", file=sys.stderr)
             x = min(max(cx - cw_c // 2, 0), src_w - cw_c)
             xexpr = str(x)
