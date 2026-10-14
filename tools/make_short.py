@@ -288,6 +288,8 @@ def build_ass(spec, timeline, total):
     cap_y = spec.get("caption_y", CAPTION_Y)
     for seg in timeline:
         s0, s1 = seg["start"], seg["end"]
+        # 얼굴 클로즈업 구간만 자막 위치를 바꿀 수 있다 (구간 "caption_y")
+        cap_y = seg.get("caption_y", spec.get("caption_y", CAPTION_Y))
         if seg.get("type") == "original":
             for a, b, text in seg["captions"]:
                 ev(a, b, "CapY", f"{{\\pos({W // 2},{cap_y})}}{text}", layer=2)
