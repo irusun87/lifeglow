@@ -308,7 +308,9 @@ def build_ass(spec, timeline, total):
         for i, chunk in enumerate(chunks):
             a = s0 + chunk[0]["start"]
             b = s0 + chunks[i + 1][0]["start"] if i + 1 < len(chunks) else s1
-            text = " ".join(w["text"] for w in chunk).rstrip(".,")
+            # "lines"가 있으면 대본 표기 그대로 보여 준다 (TTS용 '75킬로' → 자막 '75kg')
+            shown = seg["lines"][i] if seg.get("lines") else " ".join(w["text"] for w in chunk)
+            text = shown.rstrip(".,")
             ev(a, b, "Cap", f"{{\\pos({W // 2},{cap_y})}}{text}", layer=2)
 
         for ov in seg.get("overlay", []):
@@ -451,7 +453,8 @@ def main():
                 # 인물이 화면 밖으로 움직이면 컷 안에서 크롭 위치를 x → x_to 로 천천히 옮긴다(패닝)
                 x1 = min(max(c["x_to"] - cw_c // 2, 0), src_w - cw_c)
                 xexpr = f"'{x}+({x1 - x})*min(t/{max(cd, 0.1):.3f},1)'"
-            vs, lead, vd = avoid_slivers(c["start"], cd, cuts)
+            # 클립이 문장보다 짧으면 끝 프레임을 늘린다 (원본을 클립 끝 너머까지 읽으면 다음 장면이 섞임)
+            vs, lead, vd = avoid_slivers(c["start"], min(cd, ln), cuts)
             if "vstart" in c:
                 # 소리는 이 구간 그대로, 화면만 다른 시각에서 가져온다 (손에 든 제품·원본 큰 자막을 피할 때)
                 vs, lead, vd = c["vstart"], 0.0, cd
@@ -490,6 +493,22 @@ def main():
                 n += 1
                 continue
             inputs += ["-ss", f"{vs:.3f}", "-t", f"{vd:.3f}", "-i", src]
+            if c.get("fit"):
+                # 가로로 긴 장면(플랭크처럼 누운 동작): 넓게 자른 원본("w" 원본 픽셀)을 칸 안에 통째로 넣고,
+                # 남는 위아래는 같은 화면을 흐리게 깔아 채운다
+                fw = min(c["fit"], src_w) // 2 * 2
+                fx = min(max(cx - fw // 2, 0), src_w - fw)
+                filters.append(
+                    f"[{n}:v]{pre}crop={fw}:{ch_c}:{fx}:{c.get('y', crop['y'])},fps={FPS},setsar=1,"
+                    f"tpad=start_mode=clone:start_duration={lead:.3f}:stop_mode=clone:stop_duration=3,"
+                    f"trim=duration={cd:.3f},setpts=PTS-STARTPTS,split[f{n}][b{n}];"
+                    f"[b{n}]scale={W}:{VIDEO_H}:force_original_aspect_ratio=increase,crop={W}:{VIDEO_H},"
+                    f"gblur=sigma=24,eq=brightness=-0.12[bg{n}];"
+                    f"[f{n}]scale={W}:{VIDEO_H}:force_original_aspect_ratio=decrease:flags=lanczos[fg{n}];"
+                    f"[bg{n}][fg{n}]overlay=(W-w)/2:(H-h)/2,setsar=1[v{n}]")
+                labels.append(f"[v{n}]")
+                n += 1
+                continue
             filters.append(
                 f"[{n}:v]{pre}crop={cw_c}:{ch_c}:{xexpr}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
                 f"fps={FPS},setsar=1,tpad=start_mode=clone:start_duration={lead:.3f}:stop_mode=clone:stop_duration=3,"
