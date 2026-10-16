@@ -192,6 +192,36 @@ def rounded_rect(w, h, r):
             f"l {r} {h} b 0 {h} 0 {h} 0 {h - r} l 0 {r} b 0 0 0 0 {r} 0")
 
 
+# 상단 제목 스타일 (2026-10-16 이호준이 시안 ② 선택): 아이보리 띠 + 로즈 1줄 + 코코아 2줄, 강조어(하늘색으로 적은 부분)는 핑크 형광펜.
+# 스펙 "title_style": "classic" 이면 예전 검은 배경 + 노랑/흰/하늘색 제목.
+IVORY = {"bg": (255, 246, 238), "l1": (226, 86, 120), "l2": (62, 42, 38), "hl": (255, 196, 210),
+         "y1": 128, "y2": 212, "s1": 50, "s2": 68}
+
+
+def title_png(spec, out):
+    """아이보리 스타일 제목 띠(720x273 PNG)를 그린다. 형광펜 위치를 글자 폭에 정확히 맞추려고 PIL로 그린다."""
+    from PIL import Image, ImageDraw, ImageFont
+    st = IVORY
+    im = Image.new("RGB", (W, VIDEO_Y), st["bg"])
+    d = ImageDraw.Draw(im)
+    lines = [ln if not isinstance(ln, str) else [[ln, WHITE]] for ln in spec["title"]]
+    for k, (runs, y, fname, size, color) in enumerate([
+            (lines[0], st["y1"], "7Bold", spec.get("title_size1", st["s1"]), st["l1"]),
+            (lines[1], st["y2"], "9Black", spec.get("title_size2", st["s2"]), st["l2"])]):
+        font = ImageFont.truetype(f"{FONT_DIR}/Paperlogy-{fname}.ttf", size)
+        x = (W - sum(d.textlength(t, font=font) for t, _ in runs)) / 2
+        for t, c in runs:
+            tw = d.textlength(t, font=font)
+            if k == 1 and c.upper() == CYAN and t.strip():
+                lead = d.textlength(t[:len(t) - len(t.lstrip())], font=font)
+                trail = d.textlength(t[len(t.rstrip()):], font=font)
+                d.rounded_rectangle([x + lead - 6, y + 4, x + tw - trail + 6, y + size * 0.48], radius=6, fill=st["hl"])
+            d.text((x, y), t, font=font, fill=color, anchor="lm")
+            x += tw
+    im.save(out)
+    return out
+
+
 def title_line(parts):
     """[[텍스트, 색]] 또는 "텍스트" → ASS 인라인 색 태그."""
     if isinstance(parts, str):
@@ -280,9 +310,12 @@ def build_ass(spec, timeline, total):
         lines.append(f"Dialogue: {layer},{ass_time(start)},{ass_time(end)},{style},,0,0,0,,{text}")
 
     t1, t2 = spec["title"]
+    if spec.get("title_style", "ivory") != "classic":
+        t1 = t2 = None  # 제목은 title_png 로 영상에 직접 얹는다
     tsize = spec.get("title_size", TITLE_SIZE)
-    ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y1})\\fs{tsize}\\c{ass_color(YELLOW)}}}{title_line(t1)}")
-    ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y2})\\fs{tsize}\\c{ass_color(WHITE)}}}{title_line(t2)}")
+    if t1 is not None:
+        ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y1})\\fs{tsize}\\c{ass_color(YELLOW)}}}{title_line(t1)}")
+        ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y2})\\fs{tsize}\\c{ass_color(WHITE)}}}{title_line(t2)}")
 
     # 얼굴·제품이 화면 가운데를 채우는 편은 자막을 영상 아래 검은 여백으로 내린다 (스펙 "caption_y")
     cap_y = spec.get("caption_y", CAPTION_Y)
@@ -520,7 +553,12 @@ def main():
                    f"pad={W}:{H}:0:{VIDEO_Y}:black[cut]")
     ass = work / "overlay.ass"
     ass.write_text(build_ass(spec, timeline, total), encoding="utf-8")
-    filters.append(f"[cut]ass={ass}:fontsdir={FONT_DIR}[vout]")
+    if spec.get("title_style", "ivory") != "classic":
+        inputs += ["-loop", "1", "-i", str(title_png(spec, work / "title.png"))]
+        filters.append(f"[cut][{n}:v]overlay=0:0:shortest=1[cut2]")
+        filters.append(f"[cut2]ass={ass}:fontsdir={FONT_DIR}[vout]")
+    else:
+        filters.append(f"[cut]ass={ass}:fontsdir={FONT_DIR}[vout]")
     video = work / "video.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", *inputs, "-filter_complex", ";".join(filters),
                     "-map", "[vout]", "-t", f"{total:.3f}", "-c:v", "libx264", "-preset", "medium",
