@@ -486,6 +486,16 @@ def main():
                 # 인물이 화면 밖으로 움직이면 컷 안에서 크롭 위치를 x → x_to 로 천천히 옮긴다(패닝)
                 x1 = min(max(c["x_to"] - cw_c // 2, 0), src_w - cw_c)
                 xexpr = f"'{x}+({x1 - x})*min(t/{max(cd, 0.1):.3f},1)'"
+            if c.get("video"):
+                # 다른 영상 파일(사용자가 준 GIF·영상)의 start~end 구간을 그대로 쓴다
+                inputs += ["-ss", f"{c['start']:.3f}", "-t", f"{cd:.3f}", "-i", c["video"]]
+                filters.append(
+                    f"[{n}:v]crop={cw_c}:{ch_c}:{x}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
+                    f"fps={FPS},setsar=1,tpad=stop_mode=clone:stop_duration=3,trim=duration={cd:.3f},"
+                    f"setpts=PTS-STARTPTS[v{n}]")
+                labels.append(f"[v{n}]")
+                n += 1
+                continue
             # 클립이 문장보다 짧으면 끝 프레임을 늘린다 (원본을 클립 끝 너머까지 읽으면 다음 장면이 섞임)
             vs, lead, vd = avoid_slivers(c["start"], min(cd, ln), cuts)
             if "vstart" in c:

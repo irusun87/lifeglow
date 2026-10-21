@@ -76,16 +76,12 @@
    ],
    "clips": [
     {
-     "start": 0,
-     "end": 2.2,
-     "image": "/mnt/project-files/shorts/ep24_okjoohyun_scalp/photo1.png",
-     "fy": 0.0
-    },
-    {
-     "start": 0,
-     "end": 2.1,
-     "image": "/mnt/project-files/shorts/ep24_okjoohyun_scalp/photo2.png",
-     "fy": 0.3
+     "start": 0.3,
+     "end": 4.6,
+     "video": "/mnt/project-files/shorts/ep24_okjoohyun_scalp/okjoohyun_channel.mp4",
+     "x": 530,
+     "y": 40,
+     "h": 480
     }
    ]
   },
@@ -143,9 +139,9 @@
    ],
    "clips": [
     {
-     "start": 482.2,
-     "end": 483.75,
-     "x": 700
+     "start": 477.8,
+     "end": 479.35,
+     "x": 880
     },
     {
      "start": 479.85,
