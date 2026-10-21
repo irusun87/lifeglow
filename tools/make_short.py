@@ -515,7 +515,7 @@ def main():
             if c.get("still"):
                 # 정지 화면 + 천천히 확대(켄 번스): 움직이는 원본에 자막·다른 장면이 섞일 때 깨끗한 한 장면만 쓴다
                 frames = max(int(round(cd * FPS)), 1)
-                inputs += ["-ss", f"{c['start']:.3f}", "-i", src]
+                inputs += ["-ss", f"{c.get('vstart', c['start']):.3f}", "-i", src]
                 filters.append(
                     f"[{n}:v]trim=end_frame=1,{pre}crop={cw_c}:{ch_c}:{x}:{c.get('y', crop['y'])},"
                     f"scale={W * 2}:{VIDEO_H * 2}:flags=lanczos,setsar=1,"
