@@ -559,8 +559,10 @@ def main():
                 f"setpts=PTS-STARTPTS[v{n}]")
             labels.append(f"[v{n}]")
             n += 1
+    # 아이보리 스타일은 영상 아래 띠도 위 제목 띠와 같은 아이보리로 채운다 (2026-10-22 이호준)
+    bg = "black" if spec.get("title_style", "ivory") == "classic" else "0x%02X%02X%02X" % IVORY["bg"]
     filters.append("".join(labels) + f"concat=n={n}:v=1:a=0,"
-                   f"pad={W}:{H}:0:{VIDEO_Y}:black[cut]")
+                   f"pad={W}:{H}:0:{VIDEO_Y}:{bg}[cut]")
     ass = work / "overlay.ass"
     ass.write_text(build_ass(spec, timeline, total), encoding="utf-8")
     if spec.get("title_style", "ivory") != "classic":
