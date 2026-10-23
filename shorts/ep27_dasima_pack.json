@@ -37,15 +37,15 @@
     {
      "start": 9.3,
      "end": 11.1,
-     "vstart": 12.3,
-     "x": 640
+     "image": "/mnt/project-files/shorts/ep27_dasima_pack/assets/08_wonjongrye_pearl.png",
+     "fy": 0.35,
+     "zoom": 0.06
     },
     {
      "start": 11.1,
      "end": 12.92,
-     "image": "/mnt/project-files/shorts/ep27_dasima_pack/assets/08_wonjongrye_pearl.png",
-     "fy": 0.35,
-     "zoom": 0.06
+     "vstart": 14.7,
+     "x": 400
     }
    ],
    "captions": [
@@ -173,13 +173,9 @@
    "parts": [
     {
      "start": 13.4,
-     "end": 14.5,
-     "x": 700
-    },
-    {
-     "start": 14.6,
      "end": 15.48,
-     "x": 430
+     "vstart": 12.45,
+     "x": 690
     },
     {
      "start": 15.7,
@@ -220,7 +216,7 @@
       ]
      ],
      "y": 330,
-     "at": 0.6,
+     "at": 0.61,
      "dur": 1.5
     }
    ]
