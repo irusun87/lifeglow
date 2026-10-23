@@ -4,7 +4,7 @@
  "title": [
   [
    [
-    "달걀 하나로 풍성한 머리!",
+    "70대에도 풍성한 머리숱!",
     "FCF103"
    ]
   ],
@@ -35,9 +35,11 @@
     {
      "start": 47.5,
      "end": 49.86,
-     "image": "/mnt/project-files/shorts/ep28_dalkom_pack/materials/photo_a.webp",
-     "fy": 0.2,
-     "zoom": 0.06
+     "video": "/mnt/project-files/shorts/ep28_dalkom_pack/materials/mbn_240427_원종례.mp4",
+     "vstart": 116.0,
+     "x": 640,
+     "y": 110,
+     "h": 340
     },
     {
      "start": 49.86,
@@ -71,29 +73,30 @@
    ]
   },
   {
-   "text": "우아함의 대명사 배우 원종례, 수십 년째 풍성한 머리를 유지하는 비결이 있습니다.",
+   "text": "70대에도 풍성한 머리숱을 자랑하는 배우 원종례, 수십 년째 지켜온 비결이 있습니다.",
    "lines": [
-    "우아함의 대명사",
-    "배우 원종례",
+    "70대에도",
+    "풍성한 머리숱을",
+    "자랑하는 배우 원종례",
     "수십 년째",
-    "풍성한 머리를 유지하는",
-    "비결이 있습니다"
+    "지켜온 비결이 있습니다"
    ],
    "clips": [
     {
-     "image": "/mnt/project-files/shorts/ep28_dalkom_pack/materials/photo_d.webp",
-     "start": 0,
-     "end": 3.0,
-     "fy": 0.2,
-     "zoom": 0.06
+     "video": "/mnt/project-files/shorts/ep28_dalkom_pack/materials/mbn_240427_원종례.mp4",
+     "start": 70.0,
+     "end": 73.0,
+     "x": 660,
+     "y": 110,
+     "h": 340
     },
     {
-     "image": "/mnt/project-files/shorts/ep28_dalkom_pack/materials/photo_c_crop.jpg",
-     "start": 0,
-     "end": 3.0,
-     "fx": 0.5,
-     "fy": 0.3,
-     "zoom": 0.05
+     "video": "/mnt/project-files/shorts/ep28_dalkom_pack/materials/mbn_240427_원종례.mp4",
+     "start": 96.0,
+     "end": 99.0,
+     "x": 600,
+     "y": 110,
+     "h": 340
     }
    ],
    "overlay": [
@@ -101,17 +104,17 @@
      "type": "label",
      "text": [
       [
-       "수십 년째 ",
+       "70대에도 ",
        "FFFFFF"
       ],
       [
-       "풍성한 머리",
+       "풍성한 머리숱",
        "FCF103"
       ]
      ],
      "y": 330,
      "sfx": "pop",
-     "at_word": "수십"
+     "at_word": "풍성한"
     }
    ]
   },
@@ -398,7 +401,11 @@
     {
      "start": 180.44,
      "end": 188.02,
-     "x": 640
+     "video": "/mnt/project-files/shorts/ep28_dalkom_pack/materials/eggs.gif",
+     "vstart": 0.0,
+     "x": 480,
+     "y": 0,
+     "h": 720
     }
    ],
    "captions": [

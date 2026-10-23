@@ -487,8 +487,9 @@ def main():
                 x1 = min(max(c["x_to"] - cw_c // 2, 0), src_w - cw_c)
                 xexpr = f"'{x}+({x1 - x})*min(t/{max(cd, 0.1):.3f},1)'"
             if c.get("video"):
-                # 다른 영상 파일(사용자가 준 GIF·영상)의 start~end 구간을 그대로 쓴다
-                inputs += ["-ss", f"{c['start']:.3f}", "-t", f"{cd:.3f}", "-i", c["video"]]
+                # 다른 영상 파일(사용자가 준 GIF·영상)의 start~end 구간을 그대로 쓴다.
+                # 원본 발언 파트에 쓸 때는 소리는 start~end 원본, 화면은 이 파일의 vstart부터
+                inputs += ["-ss", f"{c.get('vstart', c['start']):.3f}", "-t", f"{cd:.3f}", "-i", c["video"]]
                 filters.append(
                     f"[{n}:v]crop={cw_c}:{ch_c}:{x}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
                     f"fps={FPS},setsar=1,tpad=stop_mode=clone:stop_duration=3,trim=duration={cd:.3f},"
