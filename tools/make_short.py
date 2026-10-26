@@ -30,6 +30,8 @@ W, H, FPS = 720, 1280, 30
 VIDEO_Y, VIDEO_H = 273, 774
 TITLE_SIZE, TITLE_Y1, TITLE_Y2 = 68, 147, 233
 CAPTION_Y = 770
+# 사진·정지 화면 확대(zoompan)는 위치가 정수 픽셀로 반올림돼 떨려 보이므로 SS배 해상도에서 계산하고 줄인다
+SS = 4
 FONT_DIR = os.environ.get("LIFEGLOW_FONTS", "/mnt/project-files/assets/fonts/paperlogy")
 FONT = "Paperlogy 8 ExtraBold"
 TOOLS = Path(__file__).resolve().parent
@@ -514,11 +516,11 @@ def main():
                 frames = max(int(round(cd * FPS)), 1)
                 inputs += ["-loop", "1", "-t", f"{cd + 0.5:.3f}", "-i", c["image"]]
                 filters.append(
-                    f"[{n}:v]trim=end_frame=1,scale={W * 2}:{VIDEO_H * 2}:force_original_aspect_ratio=increase:"
-                    f"flags=lanczos,crop={W * 2}:{VIDEO_H * 2}:'(iw-{W * 2})*{c.get('fx', 0.5)}':"
-                    f"'(ih-{VIDEO_H * 2})*{c.get('fy', 0.5)}',setsar=1,"
+                    f"[{n}:v]trim=end_frame=1,scale={W * SS}:{VIDEO_H * SS}:force_original_aspect_ratio=increase:"
+                    f"flags=lanczos,crop={W * SS}:{VIDEO_H * SS}:'(iw-{W * SS})*{c.get('fx', 0.5)}':"
+                    f"'(ih-{VIDEO_H * SS})*{c.get('fy', 0.5)}',setsar=1,"
                     f"zoompan=z='1+{c.get('zoom', 0.08)}*on/{frames}':d={frames}:"
-                    f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{VIDEO_H}:fps={FPS},"
+                    f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W * SS}x{VIDEO_H * SS}:fps={FPS},scale={W}:{VIDEO_H}:flags=area,"
                     f"trim=duration={cd:.3f},setpts=PTS-STARTPTS[v{n}]")
                 labels.append(f"[v{n}]")
                 n += 1
@@ -529,9 +531,9 @@ def main():
                 inputs += ["-ss", f"{c.get('vstart', c['start']):.3f}", "-i", src]
                 filters.append(
                     f"[{n}:v]trim=end_frame=1,{pre}crop={cw_c}:{ch_c}:{x}:{c.get('y', crop['y'])},"
-                    f"scale={W * 2}:{VIDEO_H * 2}:flags=lanczos,setsar=1,"
+                    f"scale={W * SS}:{VIDEO_H * SS}:flags=lanczos,setsar=1,"
                     f"zoompan=z='1+{c.get('zoom', 0.08)}*on/{frames}':d={frames}:"
-                    f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{VIDEO_H}:fps={FPS},"
+                    f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W * SS}x{VIDEO_H * SS}:fps={FPS},scale={W}:{VIDEO_H}:flags=area,"
                     f"trim=duration={cd:.3f},setpts=PTS-STARTPTS[v{n}]")
                 labels.append(f"[v{n}]")
                 n += 1

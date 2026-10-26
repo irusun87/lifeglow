@@ -1,0 +1,368 @@
+{
+ "name": "ep27 기분 좋은 날 원종례 다시마팩 (피부과 전문의 설명)",
+ "source": "/mnt/project-files/[기분 좋은 날] 풍성한 헤어 유지 비법! ＜달콤팩＞, MBC 230404 방송.mp4",
+ "title": [
+  [
+   [
+    "피부과 전문의도 인정!",
+    "FCF103"
+   ]
+  ],
+  [
+   [
+    "원종례의 ",
+    "FFFFFF"
+   ],
+   [
+    "다시마팩",
+    "00FEFD"
+   ]
+  ]
+ ],
+ "crop": {
+  "y": 125,
+  "h": 400
+ },
+ "caption_y": 985,
+ "segments": [
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 7.46,
+     "end": 9.3,
+     "vstart": 24.85,
+     "x": 630
+    },
+    {
+     "start": 9.3,
+     "end": 11.1,
+     "image": "/mnt/project-files/shorts/ep27_dasima_pack/assets/08_wonjongrye_pearl.png",
+     "fy": 0.35,
+     "zoom": 0.06
+    },
+    {
+     "start": 11.1,
+     "end": 12.92,
+     "vstart": 14.7,
+     "x": 400
+    }
+   ],
+   "captions": [
+    [
+     7.46,
+     8.98,
+     "미백에도 좋았고"
+    ],
+    [
+     8.98,
+     10.42,
+     "굉장히 촉촉하면서"
+    ],
+    [
+     10.42,
+     11.86,
+     "세안하고 나면"
+    ],
+    [
+     11.86,
+     12.92,
+     "굉장히 좋았어요"
+    ]
+   ],
+   "overlay": [
+    {
+     "type": "label",
+     "text": [
+      [
+       "",
+       "FFFFFF"
+      ],
+      [
+       "배우 원종례",
+       "FCF103"
+      ]
+     ],
+     "y": 330,
+     "at": 0.05,
+     "dur": 1.8
+    }
+   ]
+  },
+  {
+   "text": "배우 원종례가 오래 써 온 피부 비결이 있습니다.",
+   "lines": [
+    "배우 원종례가",
+    "오래 써 온",
+    "피부 비결이 있습니다"
+   ],
+   "clips": [
+    {
+     "start": 0,
+     "end": 3.4,
+     "image": "/mnt/project-files/shorts/ep27_dasima_pack/assets/02_wonjongrye_orange_c.jpg",
+     "fy": 0.3,
+     "zoom": 0.07
+    }
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 4.7,
+     "end": 7.3
+    }
+   ],
+   "captions": [
+    [
+     4.7,
+     6.32,
+     "다시마 팩을 한 지"
+    ],
+    [
+     6.32,
+     7.3,
+     "제가 좀 오래됐고요"
+    ]
+   ]
+  },
+  {
+   "text": "바로 불린 다시마를 얼굴에 그대로 붙이는 다시마팩입니다.",
+   "lines": [
+    "바로 불린 다시마를",
+    "얼굴에 그대로 붙이는",
+    "다시마팩입니다"
+   ],
+   "clips": [
+    {
+     "start": 0.15,
+     "end": 2.05,
+     "video": "/mnt/project-files/shorts/ep27_dasima_pack/assets/04_wash_kelp.mp4",
+     "x": 180,
+     "y": 0,
+     "h": 358
+    },
+    {
+     "start": 10.0,
+     "end": 12.2,
+     "x": 690
+    }
+   ],
+   "overlay": [
+    {
+     "type": "label",
+     "text": [
+      [
+       "",
+       "FFFFFF"
+      ],
+      [
+       "다시마팩",
+       "FCF103"
+      ]
+     ],
+     "y": 330,
+     "at_word": "다시마팩",
+     "dur": 1.6
+    }
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 13.4,
+     "end": 15.48,
+     "vstart": 12.45,
+     "x": 690
+    },
+    {
+     "start": 15.7,
+     "end": 17.06,
+     "x": 930,
+     "y": 100,
+     "h": 300
+    }
+   ],
+   "captions": [
+    [
+     13.4,
+     14.6,
+     "선생님, 저 잘하고 있는지"
+    ],
+    [
+     14.6,
+     15.48,
+     "모르겠어요"
+    ],
+    [
+     15.7,
+     17.06,
+     "네, 잘하고 계십니다"
+    ]
+   ],
+   "overlay": [
+    {
+     "type": "label",
+     "text": [
+      [
+       "",
+       "FFFFFF"
+      ],
+      [
+       "피부과 전문의",
+       "FCF103"
+      ]
+     ],
+     "y": 330,
+     "at": 0.61,
+     "dur": 1.5
+    }
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 17.6,
+     "end": 21.3,
+     "x": 630,
+     "h": 300,
+     "y": 108
+    },
+    {
+     "start": 21.3,
+     "end": 23.28,
+     "image": "/mnt/project-files/shorts/ep27_dasima_pack/assets/05_long_kelp.jpg",
+     "fy": 0.4,
+     "zoom": 0.06
+    },
+    {
+     "start": 23.28,
+     "end": 25.58,
+     "vstart": 22.0,
+     "x": 630,
+     "h": 300,
+     "y": 108
+    }
+   ],
+   "captions": [
+    [
+     17.6,
+     19.26,
+     "다시마에는 미네랄과"
+    ],
+    [
+     19.26,
+     21.3,
+     "비타민 A, C가 풍부해서"
+    ],
+    [
+     21.3,
+     23.28,
+     "묵은 각질을 제거해 주고"
+    ],
+    [
+     23.28,
+     25.58,
+     "피부를 탄탄하게 만들어 줍니다"
+    ]
+   ]
+  },
+  {
+   "text": "특히 다시마의 끈적한 점액질, 알긴산이 핵심이죠.",
+   "lines": [
+    "특히 다시마의",
+    "끈적한 점액질,",
+    "알긴산이 핵심이죠"
+   ],
+   "clips": [
+    {
+     "start": 26.75,
+     "end": 27.4,
+     "x": 980
+    },
+    {
+     "start": 0,
+     "end": 3.35,
+     "image": "/mnt/project-files/shorts/ep27_dasima_pack/assets/06_soaked_plate.jpg",
+     "zoom": 0.06
+    }
+   ],
+   "overlay": [
+    {
+     "type": "label",
+     "text": [
+      [
+       "",
+       "FFFFFF"
+      ],
+      [
+       "알긴산",
+       "FCF103"
+      ]
+     ],
+     "y": 330,
+     "at_word": "알긴산이",
+     "dur": 1.6
+    }
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 30.0,
+     "end": 32.55,
+     "vstart": 30.2,
+     "x": 640
+    },
+    {
+     "start": 32.55,
+     "end": 34.64,
+     "x": 610,
+     "h": 300,
+     "y": 108
+    }
+   ],
+   "captions": [
+    [
+     30.0,
+     31.9,
+     "알긴산이 피부를 촉촉하게 해"
+    ],
+    [
+     31.9,
+     34.64,
+     "보습에 도움을 줄 수 있습니다"
+    ]
+   ]
+  },
+  {
+   "text": "비싼 크림 대신, 다시마 한 장으로 촉촉한 피부를 지켜 보는 건 어떨까요?",
+   "lines": [
+    "비싼 크림 대신,",
+    "다시마 한 장으로",
+    "촉촉한 피부를",
+    "지켜 보는 건 어떨까요?"
+   ],
+   "clips": [
+    {
+     "start": 1.9,
+     "end": 3.0,
+     "video": "/mnt/project-files/shorts/ep27_dasima_pack/assets/04_wash_kelp.mp4",
+     "x": 180,
+     "y": 0,
+     "h": 358
+    },
+    {
+     "start": 0,
+     "end": 3.5,
+     "image": "/mnt/project-files/shorts/ep27_dasima_pack/assets/01_dry_kelp_sand.jpg",
+     "zoom": 0.07
+    }
+   ]
+  }
+ ]
+}
