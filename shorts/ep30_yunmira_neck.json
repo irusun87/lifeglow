@@ -23,7 +23,7 @@
   "y": 50,
   "h": 540
  },
- "caption_y": 1150,
+ "caption_y": 985,
  "segments": [
   {
    "type": "original",
@@ -70,23 +70,19 @@
    ],
    "clips": [
     {
-     "image": "/mnt/project-files/shorts/ep30_yunmira_neck/materials/photo_press.jpg",
-     "start": 0,
-     "end": 1.1,
-     "zoom": 0.05
-    },
-    {
-     "image": "/mnt/project-files/shorts/ep30_yunmira_neck/materials/photo_mag.jpg",
-     "start": 0,
-     "end": 1.0,
-     "zoom": 0.05
+     "start": 197.2,
+     "end": 199.0,
+     "vstart": 197.5,
+     "still": true,
+     "zoom": 0.05,
+     "x": 880
     },
     {
      "start": 203.0,
      "end": 205.8,
      "x": 460,
-     "y": 0,
-     "h": 530
+     "y": 100,
+     "h": 440
     }
    ],
    "overlay": []
@@ -96,14 +92,22 @@
    "parts": [
     {
      "start": 216.06,
+     "end": 217.05,
+     "x": 780,
+     "y": 0,
+     "h": 520
+    },
+    {
+     "start": 217.05,
      "end": 217.74,
+     "x": 615,
      "y": 0,
      "h": 520
     },
     {
      "start": 219.82,
      "end": 222.1,
-     "x": 780
+     "x": 870
     }
    ],
    "captions": [
@@ -128,17 +132,20 @@
    ],
    "clips": [
     {
-     "image": "/mnt/project-files/shorts/ep30_yunmira_neck/materials/photo_rs.jpg",
-     "start": 0,
-     "end": 1.6,
-     "zoom": 0.05
+     "video": "/mnt/project-files/최초공개!! 미라의 품격있는 모닝 루틴.mp4",
+     "start": 476.0,
+     "end": 478.0,
+     "x": 840,
+     "y": 100,
+     "h": 480
     },
     {
-     "start": 200.0,
-     "end": 201.9,
-     "x": 680,
-     "y": 0,
-     "h": 530
+     "video": "/mnt/project-files/최초공개!! 미라의 품격있는 모닝 루틴.mp4",
+     "start": 500.3,
+     "end": 501.7,
+     "x": 880,
+     "y": 100,
+     "h": 480
     }
    ]
   },
@@ -154,7 +161,7 @@
     {
      "start": 225.56,
      "end": 227.5,
-     "x": 830
+     "x": 910
     },
     {
      "start": 229.6,
@@ -230,20 +237,20 @@
     {
      "start": 244.74,
      "end": 249.35,
-     "x": 760,
+     "x": 840,
      "y": 0,
      "h": 520
     },
     {
      "start": 249.35,
      "end": 252.7,
-     "x": 817
+     "x": 700
     },
     {
      "start": 252.7,
      "end": 253.2,
      "vstart": 252.0,
-     "x": 817
+     "x": 700
     }
    ],
    "captions": [
@@ -319,13 +326,17 @@
      "video": "/mnt/project-files/최초공개!! 미라의 품격있는 모닝 루틴.mp4",
      "start": 472.8,
      "end": 475.4,
-     "x": 720
+     "x": 660,
+     "y": 100,
+     "h": 480
     },
     {
      "video": "/mnt/project-files/최초공개!! 미라의 품격있는 모닝 루틴.mp4",
      "start": 495.4,
      "end": 498.0,
-     "x": 800
+     "x": 800,
+     "y": 100,
+     "h": 480
     }
    ]
   },
