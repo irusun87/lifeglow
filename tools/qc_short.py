@@ -12,6 +12,9 @@
   5. 자막이 의미 단위 중간에서 끊긴 곳 ("발랐을 | 때")
   6. 제목·자막·강조 라벨이 화면 밖으로 넘치는지 (자막만 따로 그려서 실측)
   7. 컷마다 한 장씩 뽑은 확인용 이미지 (<out>.qc.jpg) — 사람/Claude 가 눈으로 본다
+  8. 인물 중심: 0.25초마다 얼굴을 찾아 화면 가로 40~60% 밖으로 0.5초 이상 쏠리면 오류,
+     얼굴이 너무 아래(세로 60% 아래)면 경고. 원본에서 옮길 x 를 함께 알려 준다 (OpenCV 필요)
+  9. 영상 튐: 같은 장면 안에서 화면이 갑자기 건너뛰는 프레임, 움직이다 멈췄다 다시 움직이는 정지 구간
 
 오류가 하나라도 있으면 종료 코드 1.
 """
@@ -167,6 +170,116 @@ def check_overflow(ass, events, total):
     return errors
 
 
+# ── 8. 인물 중심 ─────────────────────────────────────────────────────────
+VIDEO_Y, VIDEO_H = 273, 774
+CENTER_LO, CENTER_HI, CENTER_RUN = 0.40, 0.60, 0.5
+
+
+def video_frames(mp4, fps, w, h, gray=True, vh=VIDEO_H):
+    """영상 칸(제목·아래 띠 제외)만 잘라 fps 간격 프레임 배열로 읽는다. vh 로 아래 자막 줄을 뺄 수 있다."""
+    fmt, ch = ("gray", 1) if gray else ("bgr24", 3)
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", mp4, "-vf",
+                          f"crop={W}:{vh}:0:{VIDEO_Y},fps={fps},scale={w}:{h}", "-f", "rawvideo",
+                          "-pix_fmt", fmt, "-"], capture_output=True).stdout
+    n = len(raw) // (w * h * ch)
+    return np.frombuffer(raw[: n * w * h * ch], np.uint8).reshape((n, h, w) if gray else (n, h, w, ch))
+
+
+def check_center(mp4, cuts):
+    try:
+        import cv2
+    except ImportError:
+        return [], ["OpenCV 없음: 인물 중심 검사 생략 (pip install opencv-python-headless)"]
+    base = cv2.data.haarcascades
+    front = cv2.CascadeClassifier(base + "haarcascade_frontalface_default.xml")
+    prof = cv2.CascadeClassifier(base + "haarcascade_profileface.xml")
+    eye = cv2.CascadeClassifier(base + "haarcascade_eye.xml")
+    step = 0.25
+    frames = video_frames(mp4, 1 / step, W, VIDEO_H)
+    hits = []
+    for i, g in enumerate(frames):
+        found = list(front.detectMultiScale(g, 1.1, 6, minSize=(90, 90)))
+        found += list(prof.detectMultiScale(g, 1.1, 6, minSize=(90, 90)))
+        flip = prof.detectMultiScale(g[:, ::-1].copy(), 1.1, 6, minSize=(90, 90))
+        found += [(W - x - w, y, w, h) for x, y, w, h in flip]
+        if found:
+            x, y, w, h = max(found, key=lambda f: f[2] * f[3])
+            hits.append((i * step, (x + w / 2) / W, (y + h / 2) / VIDEO_H))
+            continue
+        # 얼굴이 화면보다 큰 클로즈업: 두 눈의 가운데를 얼굴 중심으로 본다
+        eyes = sorted(eye.detectMultiScale(g, 1.1, 8, minSize=(70, 40)), key=lambda e: -e[2] * e[3])[:2]
+        if len(eyes) == 2 and abs(eyes[0][1] - eyes[1][1]) < 80 and abs(eyes[0][0] - eyes[1][0]) > 150:
+            cx = sum(e[0] + e[2] / 2 for e in eyes) / 2
+            cy = sum(e[1] + e[3] / 2 for e in eyes) / 2
+            hits.append((i * step, cx / W, cy / VIDEO_H))
+    if os.environ.get("QC_CENTER_DEBUG"):
+        for h in hits:
+            print(f"    얼굴 {h[0]:6.2f}s 가로 {h[1]:.0%} 세로 {h[2]:.0%}")
+    errors, warns = [], []
+    shot = lambda t: sum(c <= t for c in cuts)
+    run = []
+    for h in hits + [None]:
+        bad = h is not None and not CENTER_LO <= h[1] <= CENTER_HI
+        if bad and (not run or (shot(h[0]) == shot(run[-1][0]) and h[0] - run[-1][0] <= step * 1.5)):
+            run.append(h)
+            continue
+        if run and run[-1][0] - run[0][0] + step >= CENTER_RUN:
+            cx = float(np.median([r[1] for r in run]))
+            side = "왼쪽" if cx < 0.5 else "오른쪽"
+            errors.append(f"{run[0][0]:.2f}~{run[-1][0] + step:.2f}s 인물이 {side}으로 쏠림 (가로 {cx:.0%}) → "
+                          f"인물을 {abs(cx - 0.5) * W:.0f}px {'오른' if cx < 0.5 else '왼'}쪽으로 옮겨야 함 "
+                          f"(spec 크롭 x 를 {'줄임' if cx < 0.5 else '늘림'})")
+        run = [h] if bad else []
+    low = [h for h in hits if h[2] > 0.6]
+    if len(low) >= 2:
+        warns.append(f"인물 얼굴이 너무 아래 (세로 60% 아래): " + ", ".join(f"{h[0]:.1f}s" for h in low[:8]))
+    return errors, warns
+
+
+# ── 9. 영상 튐 ───────────────────────────────────────────────────────────
+def check_jumps(mp4, cuts):
+    # 자막(영상 안 y≈985)이 바뀌는 건 튐이 아니므로 자막 줄 위쪽만 본다
+    fr = video_frames(mp4, 30, 90, 80, vh=640).astype(np.int16)
+    if len(fr) < 10:
+        return [], []
+    d = np.abs(np.diff(fr, axis=0)).mean(axis=(1, 2))  # d[i] = 프레임 i → i+1
+    t = (np.arange(len(d)) + 1) / 30
+    near_cut = lambda x: any(abs(x - c) < 0.07 for c in cuts)
+    errors, warns = [], []
+    for i in range(len(d)):
+        if near_cut(t[i]):
+            continue
+        win = np.r_[d[max(0, i - 8):i], d[i + 1:i + 9]]
+        m = float(np.median(win)) if len(win) else 0
+        # 같은 장면인데 한 프레임만 확 바뀜 = 앞뒤로 건너뜀 (scdet 문턱보다 약한 점프)
+        # 눈 깜빡임·빠른 손동작처럼 여러 프레임에 걸친 움직임은 빼고, 앞뒤 프레임은 조용한 한 프레임짜리 점프만 본다
+        calm = lambda j: 0 <= j < len(d) and d[j] < max(2 * m, 3.0)
+        if d[i] > max(4 * m, 5.0) and d[i] < 40 and calm(i - 1) and calm(i + 1):
+            errors.append(f"{t[i]:.2f}s 같은 장면 안에서 화면이 튐 (변화 {d[i]:.1f}, 주변 {m:.1f})")
+    # 움직이던 화면이 멈췄다가 다시 움직이거나, 컷 직전에 멈춤
+    still = d < 0.15
+    i = 0
+    while i < len(d):
+        if not still[i]:
+            i += 1
+            continue
+        j = i
+        while j < len(d) and still[j]:
+            j += 1
+        dur = (j - i) / 30
+        before = float(np.median(d[max(0, i - 10):i])) if i else 0
+        after = float(np.median(d[j:j + 10])) if j < len(d) else 0
+        if dur >= 0.15 and before > 0.8:
+            ends_at_cut = j >= len(d) or near_cut(t[min(j, len(d) - 1)])
+            msg = f"{t[i]:.2f}~{t[min(j, len(d) - 1)]:.2f}s 화면 멈춤 {dur:.2f}초"
+            if not ends_at_cut and after > 0.8:
+                errors.append(msg + " 뒤 다시 움직임 (끊겨 보임)")
+            elif dur >= 0.2:
+                warns.append(msg + " (컷 직전 정지, 클립 길이 부족)")
+        i = j
+    return errors, warns
+
+
 # ── 7. 확인용 이미지 ─────────────────────────────────────────────────────
 def contact_sheet(mp4, cuts, total, out):
     bounds = [0.0] + cuts + [total]
@@ -204,6 +317,12 @@ def main():
     cuts, err, notes = check_shots(mp4, total)
     report["errors"] += err
     report["notes"] += notes
+    err, warn = check_center(mp4, cuts)
+    report["errors"] += err
+    report["warnings"] += warn
+    err, warn = check_jumps(mp4, cuts)
+    report["errors"] += err
+    report["warnings"] += warn
     lufs, err = check_loudness(mp4)
     report["lufs"] = lufs
     report["errors"] += err

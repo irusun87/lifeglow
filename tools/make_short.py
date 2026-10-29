@@ -365,6 +365,19 @@ def build_ass(spec, timeline, total):
                                  f"\\1a&H50&{fade}}}{rounded_rect(bw, bh, bh // 2)}", layer=4)
                 ev(a, b, "Label", f"{{\\pos({W // 2},{y})\\fs{size}{fade}}}{title_line(parts)}", layer=5)
                 continue
+            if ov["type"] == "arrow":
+                # 방향 화살표: 면봉·손이 움직이는 방향(위→아래, 아래→위)을 dur초 동안 그 방향으로 미끄러지며 보여 준다
+                b = a + ov.get("dur", 1.6)
+                sgn = 1 if ov.get("dir", "down") == "down" else -1
+                L, ms = ov.get("length", 60), int(ov.get("dur", 1.6) * 1000)
+                x, y = ov["x"], ov["y"]
+                shape = " ".join(f"{px} {py * sgn}" for px, py in
+                                 [(-13, -65), (13, -65), (13, 15), (40, 15), (0, 70), (-40, 15), (-13, 15)])
+                ev(a, b, "Draw", f"{{\\an5\\move({x},{y - sgn * L // 2},{x},{y + sgn * L // 2},0,{ms})"
+                                 f"\\p1\\c{ass_color(ov.get('color', YELLOW))}\\3c{ass_color(BLACK)}\\bord3"
+                                 f"\\fad(120,200)}}m {shape.split(' ', 2)[0]} {shape.split(' ', 2)[1]} l "
+                                 f"{shape.split(' ', 2)[2]}", layer=4)
+                continue
             if ov["type"] == "chips":
                 items, per_row = ov["items"], ov.get("per_row", 4)
                 y0 = ov.get("y", cap_y - 170)
@@ -467,7 +480,9 @@ def main():
     for seg in timeline:
         d = seg["end"] - seg["start"]
         clips = seg["clips"]
-        lens = [c["end"] - c["start"] for c in clips]
+        # "speed": 0.6 이면 그 클립을 0.6배속(느리게)으로 보여 준다. 내레이션 클립은 느려진 만큼 길게 센다
+        sp_of = lambda c: c.get("speed", 1.0) if seg.get("type") != "original" else 1.0
+        lens = [(c["end"] - c["start"]) / sp_of(c) for c in clips]
         for c, ln in zip(clips, lens):
             cd = d * ln / sum(lens)
             if cd > ln + 0.05:
@@ -500,10 +515,11 @@ def main():
                 n += 1
                 continue
             # 클립이 문장보다 짧으면 끝 프레임을 늘린다 (원본을 클립 끝 너머까지 읽으면 다음 장면이 섞임)
-            vs, lead, vd = avoid_slivers(c["start"], min(cd, ln), cuts)
+            sp = c.get("speed", 1.0)
+            vs, lead, vd = avoid_slivers(c["start"], min(cd, ln) * sp, cuts)
             if "vstart" in c:
                 # 소리는 이 구간 그대로, 화면만 다른 시각에서 가져온다 (손에 든 제품·원본 큰 자막을 피할 때)
-                vs, lead, vd = c["vstart"], 0.0, cd
+                vs, lead, vd = c["vstart"], 0.0, cd * sp
             if c.get("hold"):
                 # 앞부분 화면이 쓸 수 없을 때(검은 화면, 다른 인물): 소리는 그대로 두고 hold초 뒤 첫 프레임으로 채운다
                 vs, lead, vd = c["start"] + c["hold"], c["hold"], max(cd - c["hold"], 0.04)
@@ -555,9 +571,10 @@ def main():
                 labels.append(f"[v{n}]")
                 n += 1
                 continue
+            slow = f"setpts=(PTS-STARTPTS)/{sp},fps={FPS}," if sp != 1.0 else ""
             filters.append(
-                f"[{n}:v]{pre}crop={cw_c}:{ch_c}:{xexpr}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
-                f"fps={FPS},setsar=1,tpad=start_mode=clone:start_duration={lead:.3f}:stop_mode=clone:stop_duration=3,"
+                f"[{n}:v]{slow}{pre}crop={cw_c}:{ch_c}:{xexpr}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
+                f"fps={FPS},setsar=1,tpad=start_mode=clone:start_duration={lead / sp:.3f}:stop_mode=clone:stop_duration=3,"
                 f"trim=duration={cd:.3f},"
                 f"setpts=PTS-STARTPTS[v{n}]")
             labels.append(f"[v{n}]")
