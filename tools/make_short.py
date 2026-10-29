@@ -99,11 +99,12 @@ def words_from_audio(text, wav, dur):
 
 
 def extract_original(src, parts, out, lufs=-16):
-    """원본 영상의 발언 구간들을 잘라 이어 붙이고 내레이션과 비슷한 크기로 맞춘다."""
+    """원본 영상의 발언 구간들을 잘라 이어 붙이고 내레이션과 비슷한 크기로 맞춘다.
+    src 는 경로 또는 파트 → 경로 함수 (파트마다 다른 원본 영상을 쓸 때)."""
     ins, filt = [], []
     for i, p in enumerate(parts):
         d = p["end"] - p["start"]
-        ins += ["-ss", f"{p['start']:.3f}", "-t", f"{d:.3f}", "-i", src]
+        ins += ["-ss", f"{p['start']:.3f}", "-t", f"{d:.3f}", "-i", src(p) if callable(src) else src]
         # 이어지는 구간(앞 구간 끝 = 이 구간 시작, 화면 위치만 바꾼 경우)은 페이드 없이 붙인다
         fin = "" if i > 0 and abs(parts[i - 1]["end"] - p["start"]) < 0.01 else "afade=t=in:d=0.03,"
         fout = ("" if i + 1 < len(parts) and abs(parts[i + 1]["start"] - p["end"]) < 0.01
@@ -416,7 +417,9 @@ def main():
     args = p.parse_args()
 
     spec = json.loads(Path(args.spec).read_text(encoding="utf-8"))
-    src = spec["source"]
+    # 원본이 여러 개면 "sources": {"a": 경로, …} 로 이름을 붙이고 클립·파트에 "src": "a" 로 고른다
+    sources = spec.get("sources", {})
+    src_of = lambda c: sources[c["src"]] if c.get("src") else spec["source"]
     work = Path(tempfile.mkdtemp(prefix="short_"))
 
     # 1) 구간별 길이와 단어 타이밍
@@ -440,7 +443,7 @@ def main():
                         caps.append(piece)
                 off += p["end"] - p["start"]
             wav = work / f"orig_{len(timeline):02}.wav"
-            extract_original(src, parts, wav)
+            extract_original(src_of, parts, wav)
             voices.append(wav)
             timeline.append({**seg, "clips": parts, "start": t, "end": t + d, "words": [],
                              "captions": caps})
@@ -473,10 +476,7 @@ def main():
     ch = crop["h"]
     cw = round(ch * W / VIDEO_H) // 2 * 2
     inputs, filters, labels, n = [], [], [], 0
-    last = max(c["end"] for seg in timeline for c in seg["clips"]) + 1
-    cuts = scene_cuts(src, last)
-    src_w = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
-                                "stream=width", "-of", "csv=p=0", src], capture_output=True, text=True).stdout)
+    cuts_of, width_of = {}, {}
     for seg in timeline:
         d = seg["end"] - seg["start"]
         clips = seg["clips"]
@@ -488,6 +488,14 @@ def main():
             if cd > ln + 0.05:
                 print(f"경고: {c['start']}~{c['end']} 클립이 {cd - ln:.2f}s 부족해 마지막 프레임을 늘립니다",
                       file=sys.stderr)
+            src = src_of(c)
+            if src not in cuts_of:
+                last = max(k["end"] for sg in timeline for k in sg["clips"] if src_of(k) == src) + 1
+                cuts_of[src] = scene_cuts(src, last)
+                width_of[src] = int(subprocess.run(
+                    ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width",
+                     "-of", "csv=p=0", src], capture_output=True, text=True).stdout)
+            cuts, src_w = cuts_of[src], width_of[src]
             # 클립마다 크롭 높이를 바꿀 수 있다 ("h"): 손에 든 제품을 숨기려고 얼굴 쪽만 확대할 때
             ch_c = c.get("h", ch)
             cw_c = round(ch_c * W / VIDEO_H) // 2 * 2
