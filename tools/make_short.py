@@ -596,8 +596,11 @@ def main():
             dl = c.get("delogo", spec.get("delogo"))
             pre = ""
             if dl:
-                lx, ly, lw, lh = dl.split(":") if isinstance(dl, str) else dl
-                pre = f"delogo=x={lx}:y={ly}:w={lw}:h={lh},"
+                # 움직이는 물체(손에 든 병)의 스티커: [[x, y, w, h, 시작초, 끝초], …] (클립 화면 시작 기준 초)
+                boxes = [dl.split(":")] if isinstance(dl, str) else (dl if isinstance(dl[0], list) else [dl])
+                for b in boxes:
+                    en = f":enable='between(t,{b[4]},{b[5]})'" if len(b) > 4 else ""
+                    pre += f"delogo=x={b[0]}:y={b[1]}:w={b[2]}:h={b[3]}{en},"
             if c.get("image"):
                 # 외부 사진(픽사베이 등 무료 자료): 화면을 꽉 채우게 자르고 천천히 확대. fx = 가로 중심(0~1)
                 frames = max(int(round(cd * FPS)), 1)
