@@ -136,6 +136,53 @@ def avoid_slivers(start, dur, cuts, min_shot=0.5):
     return vs, vs - start, max(ve - vs, 0.04)
 
 
+def face_track(src, start, end, step=0.25, xrange=None):
+    """클립 구간에서 0.25초마다 가장 큰 얼굴의 가로 중심(원본 픽셀)을 찾아 [(초, x)] 로 돌려준다.
+    튀는 값은 중앙값 필터로 거르고 이동 평균으로 부드럽게 만든다 (카메라가 천천히 따라가는 느낌)."""
+    import cv2
+    import numpy as np
+    src_w = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                "stream=width", "-of", "csv=p=0", src], capture_output=True, text=True).stdout)
+    casc = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    prof = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_profileface.xml")
+    ts, xs = [], []
+    k = 0
+    while start + k * step <= end + 1e-6:
+        t = start + k * step
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t:.3f}", "-i", src, "-frames:v", "1",
+                              "-vf", "scale=960:540", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+                             capture_output=True).stdout
+        if len(raw) == 960 * 540:
+            g = np.frombuffer(raw, np.uint8).reshape(540, 960)
+            # 완성본 검사(qc_short.py 인물 중심)와 같은 기준: 정면 + 옆얼굴(좌우) 중 가장 큰 얼굴
+            faces = list(casc.detectMultiScale(g, 1.1, 5, minSize=(50, 50)))
+            faces += list(prof.detectMultiScale(g, 1.1, 5, minSize=(50, 50)))
+            faces += [(960 - x - w, y, w, h) for x, y, w, h in
+                      prof.detectMultiScale(g[:, ::-1].copy(), 1.1, 5, minSize=(50, 50))]
+            if xrange:
+                # 두 사람이 나오는 컷: 말하는 사람이 있는 가로 범위(원본 픽셀)의 얼굴만 따라간다
+                faces = [f for f in faces if xrange[0] <= (f[0] + f[2] / 2) * src_w / 960 <= xrange[1]]
+            if len(faces):
+                x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
+                ts.append(t - start)
+                xs.append((x + w / 2) * src_w / 960)
+        k += 1
+    if not xs:
+        return [(0.0, src_w / 2)]
+    med = [float(np.median(xs[max(i - 2, 0):i + 3])) for i in range(len(xs))]
+    sm = [float(np.mean(med[max(i - 2, 0):i + 3])) for i in range(len(med))]
+    return list(zip(ts, sm))
+
+
+def track_expr(track, cw, src_w):
+    """[(초, 얼굴 x)] → 크롭 왼쪽 x 를 시간에 따라 직선으로 잇는 ffmpeg 식."""
+    pts = [(t, min(max(x - cw / 2, 0), src_w - cw)) for t, x in track]
+    expr = f"{pts[-1][1]:.1f}"
+    for (t0, x0), (t1, x1) in reversed(list(zip(pts, pts[1:]))):
+        expr = f"if(lt(t,{t1:.3f}),{x0:.1f}+({x1 - x0:.1f})*(t-{t0:.3f})/{max(t1 - t0, 0.01):.3f},{expr})"
+    return f"'if(lt(t,{pts[0][0]:.3f}),{pts[0][1]:.1f},{expr})'"
+
+
 def face_x(src, start, end, default=None):
     """클립 구간에서 가장 큰 얼굴의 가로 중심(원본 픽셀)을 찾는다. OpenCV가 없거나 못 찾으면 화면 가운데."""
     src_w = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
@@ -505,8 +552,19 @@ def main():
                 fs = c.get("vstart", c["start"])
                 cx = face_x(src, fs, fs + cd)
                 print(f"얼굴 위치 자동: {c['start']:.2f}~{c['start'] + cd:.2f} → x={cx}", file=sys.stderr)
+            track = None
+            if cx == "track":
+                # 인물이 컷 안에서 좌우로 움직이면 얼굴을 따라 크롭이 부드럽게 움직인다
+                fs = c.get("vstart", c["start"])
+                # "track_off": 얼굴 검출 상자가 머리카락 쪽으로 쏠릴 때 보정 (음수면 인물이 오른쪽으로)
+                track = [(tt, xx + c.get("track_off", 0)) for tt, xx in face_track(src, fs, fs + cd, xrange=c.get("track_range"))]
+                cx = int(sum(x for _, x in track) / len(track))
+                print(f"얼굴 따라가기: {c['start']:.2f}~{c['start'] + cd:.2f} → x " +
+                      " ".join(f"{x:.0f}" for _, x in track[::4]), file=sys.stderr)
             x = min(max(cx - cw_c // 2, 0), src_w - cw_c)
             xexpr = str(x)
+            if track:
+                xexpr = track_expr(track, cw_c, src_w)
             if "x_to" in c:
                 # 인물이 화면 밖으로 움직이면 컷 안에서 크롭 위치를 x → x_to 로 천천히 옮긴다(패닝)
                 x1 = min(max(c["x_to"] - cw_c // 2, 0), src_w - cw_c)
@@ -534,7 +592,12 @@ def main():
             if lead > 0.02 or vd < cd - 0.02:
                 print(f"짧은 장면 조각 제거: {c['start']:.2f}~{c['start'] + cd:.2f} → 화면 {vs:.2f}~{vs + vd:.2f}",
                       file=sys.stderr)
-            pre = f"delogo={spec['delogo']}," if spec.get("delogo") else ""
+            # 스티커·로고 가리기: 스펙 전체 "delogo" 또는 클립별 "delogo" (원본 픽셀 x:y:w:h → 주변색으로 메움)
+            dl = c.get("delogo", spec.get("delogo"))
+            pre = ""
+            if dl:
+                lx, ly, lw, lh = dl.split(":") if isinstance(dl, str) else dl
+                pre = f"delogo=x={lx}:y={ly}:w={lw}:h={lh},"
             if c.get("image"):
                 # 외부 사진(픽사베이 등 무료 자료): 화면을 꽉 채우게 자르고 천천히 확대. fx = 가로 중심(0~1)
                 frames = max(int(round(cd * FPS)), 1)
