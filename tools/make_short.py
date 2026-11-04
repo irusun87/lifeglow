@@ -535,6 +535,8 @@ def main():
                 print(f"짧은 장면 조각 제거: {c['start']:.2f}~{c['start'] + cd:.2f} → 화면 {vs:.2f}~{vs + vd:.2f}",
                       file=sys.stderr)
             pre = f"delogo={spec['delogo']}," if spec.get("delogo") else ""
+            # 클립별 로고 가리기: "delogo": ["x=480:y=1:w=200:h=140", …] (원본 픽셀, 제품 브랜드 로고 등)
+            pre += "".join(f"delogo={d}," for d in c.get("delogo", []))
             if c.get("image"):
                 # 외부 사진(픽사베이 등 무료 자료): 화면을 꽉 채우게 자르고 천천히 확대. fx = 가로 중심(0~1)
                 frames = max(int(round(cd * FPS)), 1)
