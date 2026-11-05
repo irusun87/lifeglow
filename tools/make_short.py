@@ -272,12 +272,13 @@ def title_png(spec, out):
         x = (W * sc - sum(d.textlength(t, font=font) for t, _ in runs)) / 2
         for t, c in runs:
             tw = d.textlength(t, font=font)
-            if k == 1 and c.upper() == CYAN and t.strip():
+            # 하늘색으로 지정한 단어 = 형광펜 강조 (1줄도 가능: 1줄에서는 글자도 진하게)
+            if c.upper() == CYAN and t.strip():
                 lead = d.textlength(t[:len(t) - len(t.lstrip())], font=font)
                 trail = d.textlength(t[len(t.rstrip()):], font=font)
                 d.rounded_rectangle([x + lead - 6 * sc, y + 4 * sc, x + tw - trail + 6 * sc, y + size * 0.48],
                                     radius=round(6 * sc), fill=st["hl"])
-            d.text((x, y), t, font=font, fill=color, anchor="lm")
+            d.text((x, y), t, font=font, fill=(st["l2"] if k == 0 and c.upper() == CYAN else color), anchor="lm")
             x += tw
     im.save(out)
     return out
