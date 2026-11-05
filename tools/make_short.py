@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """라이프글로우 쇼츠 한 편을 스펙(JSON)대로 렌더링한다.
 
-레이아웃 (720x1280, 30fps):
+레이아웃 (720x1280 좌표 기준, 30fps; 출력은 기본 1080x1920 고화질, --res 720 이면 720x1280):
   - 상단 2줄 제목 고정 (1줄 노랑 / 2줄 흰색, 강조 키워드 하늘색)
   - 가운데 원본 클립 720x774 (y=273), 문장마다 1~2컷
   - 클립 아래쪽에 1~3어절 자막 (흰 글씨 + 검은 외곽선), 포인트 그래픽(칩·큰 라벨)
@@ -26,6 +26,14 @@ import tempfile
 from pathlib import Path
 
 W, H, FPS = 720, 1280, 30
+# 레이아웃 좌표는 720x1280 기준 그대로 두고, 마지막에 1.5배(1080x1920)로 키워 고화질로 내보낸다 (2026-11-04 이호준).
+# 자막(ASS)과 제목 띠는 1080 해상도에서 직접 그려 글자가 선명하다. --res 720 이면 예전처럼 720x1280.
+OUT_SCALE = 1.5
+# 고화질 인코딩: 1080x1920 30fps 기준 평균 약 10~12Mbps (45~60초 쇼츠 ≈ 50~100MB).
+# 원본 클립이 대개 720p 이하라 CRF만 쓰면 4Mbps 남짓에 그쳐, 평균 비트레이트를 10Mbps로 정해 준다.
+VIDEO_ENC = ["-c:v", "libx264", "-preset", "slow", "-b:v", "10M", "-maxrate", "14M", "-bufsize", "20M",
+             "-profile:v", "high", "-level", "4.2", "-g", "60", "-pix_fmt", "yuv420p", "-color_range", "tv",
+             "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709"]
 # 기존 채널 영상(차승원·박미선 편) 실측: 영상 720x774 @ y=273, 제목 1줄 y≈147, 2줄 y≈233, 자막 y≈770
 VIDEO_Y, VIDEO_H = 273, 774
 TITLE_SIZE, TITLE_Y1, TITLE_Y2 = 68, 147, 233
@@ -136,6 +144,53 @@ def avoid_slivers(start, dur, cuts, min_shot=0.5):
     return vs, vs - start, max(ve - vs, 0.04)
 
 
+def face_track(src, start, end, step=0.25, xrange=None):
+    """클립 구간에서 0.25초마다 가장 큰 얼굴의 가로 중심(원본 픽셀)을 찾아 [(초, x)] 로 돌려준다.
+    튀는 값은 중앙값 필터로 거르고 이동 평균으로 부드럽게 만든다 (카메라가 천천히 따라가는 느낌)."""
+    import cv2
+    import numpy as np
+    src_w = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                "stream=width", "-of", "csv=p=0", src], capture_output=True, text=True).stdout)
+    casc = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    prof = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_profileface.xml")
+    ts, xs = [], []
+    k = 0
+    while start + k * step <= end + 1e-6:
+        t = start + k * step
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t:.3f}", "-i", src, "-frames:v", "1",
+                              "-vf", "scale=960:540", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+                             capture_output=True).stdout
+        if len(raw) == 960 * 540:
+            g = np.frombuffer(raw, np.uint8).reshape(540, 960)
+            # 완성본 검사(qc_short.py 인물 중심)와 같은 기준: 정면 + 옆얼굴(좌우) 중 가장 큰 얼굴
+            faces = list(casc.detectMultiScale(g, 1.1, 5, minSize=(50, 50)))
+            faces += list(prof.detectMultiScale(g, 1.1, 5, minSize=(50, 50)))
+            faces += [(960 - x - w, y, w, h) for x, y, w, h in
+                      prof.detectMultiScale(g[:, ::-1].copy(), 1.1, 5, minSize=(50, 50))]
+            if xrange:
+                # 두 사람이 나오는 컷: 말하는 사람이 있는 가로 범위(원본 픽셀)의 얼굴만 따라간다
+                faces = [f for f in faces if xrange[0] <= (f[0] + f[2] / 2) * src_w / 960 <= xrange[1]]
+            if len(faces):
+                x, y, w, h = max(faces, key=lambda f: f[2] * f[3])
+                ts.append(t - start)
+                xs.append((x + w / 2) * src_w / 960)
+        k += 1
+    if not xs:
+        return [(0.0, src_w / 2)]
+    med = [float(np.median(xs[max(i - 2, 0):i + 3])) for i in range(len(xs))]
+    sm = [float(np.mean(med[max(i - 2, 0):i + 3])) for i in range(len(med))]
+    return list(zip(ts, sm))
+
+
+def track_expr(track, cw, src_w):
+    """[(초, 얼굴 x)] → 크롭 왼쪽 x 를 시간에 따라 직선으로 잇는 ffmpeg 식."""
+    pts = [(t, min(max(x - cw / 2, 0), src_w - cw)) for t, x in track]
+    expr = f"{pts[-1][1]:.1f}"
+    for (t0, x0), (t1, x1) in reversed(list(zip(pts, pts[1:]))):
+        expr = f"if(lt(t,{t1:.3f}),{x0:.1f}+({x1 - x0:.1f})*(t-{t0:.3f})/{max(t1 - t0, 0.01):.3f},{expr})"
+    return f"'if(lt(t,{pts[0][0]:.3f}),{pts[0][1]:.1f},{expr})'"
+
+
 def face_x(src, start, end, default=None):
     """클립 구간에서 가장 큰 얼굴의 가로 중심(원본 픽셀)을 찾는다. OpenCV가 없거나 못 찾으면 화면 가운데."""
     src_w = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
@@ -202,23 +257,26 @@ IVORY = {"bg": (255, 246, 238), "l1": (226, 86, 120), "l2": (62, 42, 38), "hl": 
 
 
 def title_png(spec, out):
-    """아이보리 스타일 제목 띠(720x273 PNG)를 그린다. 형광펜 위치를 글자 폭에 정확히 맞추려고 PIL로 그린다."""
+    """아이보리 스타일 제목 띠(720x273 기준, 출력 배율만큼 크게 그린 PNG)를 그린다. 형광펜 위치를 글자 폭에 정확히 맞추려고 PIL로 그린다."""
     from PIL import Image, ImageDraw, ImageFont
     st = IVORY
-    im = Image.new("RGB", (W, VIDEO_Y), st["bg"])
+    sc = OUT_SCALE
+    im = Image.new("RGB", (round(W * sc), round(VIDEO_Y * sc)), st["bg"])
     d = ImageDraw.Draw(im)
     lines = [ln if not isinstance(ln, str) else [[ln, WHITE]] for ln in spec["title"]]
     for k, (runs, y, fname, size, color) in enumerate([
             (lines[0], st["y1"], "7Bold", spec.get("title_size1", st["s1"]), st["l1"]),
             (lines[1], st["y2"], "9Black", spec.get("title_size2", st["s2"]), st["l2"])]):
-        font = ImageFont.truetype(f"{FONT_DIR}/Paperlogy-{fname}.ttf", size)
-        x = (W - sum(d.textlength(t, font=font) for t, _ in runs)) / 2
+        y, size = y * sc, size * sc
+        font = ImageFont.truetype(f"{FONT_DIR}/Paperlogy-{fname}.ttf", round(size))
+        x = (W * sc - sum(d.textlength(t, font=font) for t, _ in runs)) / 2
         for t, c in runs:
             tw = d.textlength(t, font=font)
             if k == 1 and c.upper() == CYAN and t.strip():
                 lead = d.textlength(t[:len(t) - len(t.lstrip())], font=font)
                 trail = d.textlength(t[len(t.rstrip()):], font=font)
-                d.rounded_rectangle([x + lead - 6, y + 4, x + tw - trail + 6, y + size * 0.48], radius=6, fill=st["hl"])
+                d.rounded_rectangle([x + lead - 6 * sc, y + 4 * sc, x + tw - trail + 6 * sc, y + size * 0.48],
+                                    radius=round(6 * sc), fill=st["hl"])
             d.text((x, y), t, font=font, fill=color, anchor="lm")
             x += tw
     im.save(out)
@@ -286,7 +344,8 @@ def render_sfx(events, total, out):
 def build_ass(spec, timeline, total):
     fs = spec.get("caption_size", 60)
     lines = [
-        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {W}", f"PlayResY: {H}", "WrapStyle: 2", "",
+        "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {W}", f"PlayResY: {H}", "WrapStyle: 2",
+        "ScaledBorderAndShadow: yes", "",
         "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, "
         "Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, "
@@ -414,7 +473,12 @@ def main():
     p.add_argument("--out", required=True)
     p.add_argument("--rate", type=float, default=7.0, help="TTS 없을 때 초당 글자 수 추정치")
     p.add_argument("--no-sfx", action="store_true", help="효과음 없이 렌더링")
+    p.add_argument("--res", type=int, choices=[720, 1080], default=1080,
+                   help="출력 가로 해상도 (기본 1080 = 1080x1920 고화질)")
     args = p.parse_args()
+    global OUT_SCALE
+    OUT_SCALE = args.res / W
+    OW, OH = args.res, round(H * OUT_SCALE)
 
     spec = json.loads(Path(args.spec).read_text(encoding="utf-8"))
     # 원본이 여러 개면 "sources": {"a": 경로, …} 로 이름을 붙이고 클립·파트에 "src": "a" 로 고른다
@@ -505,8 +569,19 @@ def main():
                 fs = c.get("vstart", c["start"])
                 cx = face_x(src, fs, fs + cd)
                 print(f"얼굴 위치 자동: {c['start']:.2f}~{c['start'] + cd:.2f} → x={cx}", file=sys.stderr)
+            track = None
+            if cx == "track":
+                # 인물이 컷 안에서 좌우로 움직이면 얼굴을 따라 크롭이 부드럽게 움직인다
+                fs = c.get("vstart", c["start"])
+                # "track_off": 얼굴 검출 상자가 머리카락 쪽으로 쏠릴 때 보정 (음수면 인물이 오른쪽으로)
+                track = [(tt, xx + c.get("track_off", 0)) for tt, xx in face_track(src, fs, fs + cd, xrange=c.get("track_range"))]
+                cx = int(sum(x for _, x in track) / len(track))
+                print(f"얼굴 따라가기: {c['start']:.2f}~{c['start'] + cd:.2f} → x " +
+                      " ".join(f"{x:.0f}" for _, x in track[::4]), file=sys.stderr)
             x = min(max(cx - cw_c // 2, 0), src_w - cw_c)
             xexpr = str(x)
+            if track:
+                xexpr = track_expr(track, cw_c, src_w)
             if "x_to" in c:
                 # 인물이 화면 밖으로 움직이면 컷 안에서 크롭 위치를 x → x_to 로 천천히 옮긴다(패닝)
                 x1 = min(max(c["x_to"] - cw_c // 2, 0), src_w - cw_c)
@@ -534,7 +609,15 @@ def main():
             if lead > 0.02 or vd < cd - 0.02:
                 print(f"짧은 장면 조각 제거: {c['start']:.2f}~{c['start'] + cd:.2f} → 화면 {vs:.2f}~{vs + vd:.2f}",
                       file=sys.stderr)
-            pre = f"delogo={spec['delogo']}," if spec.get("delogo") else ""
+            # 스티커·로고 가리기: 스펙 전체 "delogo" 또는 클립별 "delogo" (원본 픽셀 x:y:w:h → 주변색으로 메움)
+            dl = c.get("delogo", spec.get("delogo"))
+            pre = ""
+            if dl:
+                # 움직이는 물체(손에 든 병)의 스티커: [[x, y, w, h, 시작초, 끝초], …] (클립 화면 시작 기준 초)
+                boxes = [dl.split(":")] if isinstance(dl, str) else (dl if isinstance(dl[0], list) else [dl])
+                for b in boxes:
+                    en = f":enable='between(t,{b[4]},{b[5]})'" if len(b) > 4 else ""
+                    pre += f"delogo=x={b[0]}:y={b[1]}:w={b[2]}:h={b[3]}{en},"
             if c.get("image"):
                 # 외부 사진(픽사베이 등 무료 자료): 화면을 꽉 채우게 자르고 천천히 확대. fx = 가로 중심(0~1)
                 frames = max(int(round(cd * FPS)), 1)
@@ -590,7 +673,7 @@ def main():
     # 아이보리 스타일은 영상 아래 띠도 위 제목 띠와 같은 아이보리로 채운다 (2026-10-22 이호준)
     bg = "black" if spec.get("title_style", "ivory") == "classic" else "0x%02X%02X%02X" % IVORY["bg"]
     filters.append("".join(labels) + f"concat=n={n}:v=1:a=0,"
-                   f"pad={W}:{H}:0:{VIDEO_Y}:{bg}[cut]")
+                   f"pad={W}:{H}:0:{VIDEO_Y}:{bg},scale={OW}:{OH}:flags=lanczos,setsar=1[cut]")
     ass = work / "overlay.ass"
     ass.write_text(build_ass(spec, timeline, total), encoding="utf-8")
     if spec.get("title_style", "ivory") != "classic":
@@ -601,8 +684,7 @@ def main():
         filters.append(f"[cut]ass={ass}:fontsdir={FONT_DIR}[vout]")
     video = work / "video.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", *inputs, "-filter_complex", ";".join(filters),
-                    "-map", "[vout]", "-t", f"{total:.3f}", "-c:v", "libx264", "-preset", "medium",
-                    "-crf", "19", "-pix_fmt", "yuv420p", str(video)], check=True)
+                    "-map", "[vout]", "-t", f"{total:.3f}", *VIDEO_ENC, str(video)], check=True)
 
     # 3) 오디오: 내레이션 + 원본 발언을 순서대로 이어 붙여 말소리 트랙 → BGM 믹스(말소리 구간 덕킹)
     voice = work / "voice.wav"
@@ -622,7 +704,7 @@ def main():
 
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), *audio, *afilter,
                     "-map", "0:v", "-map", "1:a", "-t", f"{total:.3f}", "-c:v", "copy",
-                    "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", args.out],
+                    "-c:a", "aac", "-b:a", "256k", "-ar", "48000", "-movflags", "+faststart", args.out],
                    check=True)
     # 검사용 부산물: 자막 파일과 BGM 없는 말소리 트랙 (tools/qc_short.py 가 사용)
     shutil.copy(ass, Path(args.out).with_suffix(".ass"))
