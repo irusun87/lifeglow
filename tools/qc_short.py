@@ -179,7 +179,7 @@ def video_frames(mp4, fps, w, h, gray=True, vh=VIDEO_H):
     """영상 칸(제목·아래 띠 제외)만 잘라 fps 간격 프레임 배열로 읽는다. vh 로 아래 자막 줄을 뺄 수 있다."""
     fmt, ch = ("gray", 1) if gray else ("bgr24", 3)
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", mp4, "-vf",
-                          f"crop={W}:{vh}:0:{VIDEO_Y},fps={fps},scale={w}:{h}", "-f", "rawvideo",
+                          f"scale={W}:{H},crop={W}:{vh}:0:{VIDEO_Y},fps={fps},scale={w}:{h}", "-f", "rawvideo",
                           "-pix_fmt", fmt, "-"], capture_output=True).stdout
     n = len(raw) // (w * h * ch)
     return np.frombuffer(raw[: n * w * h * ch], np.uint8).reshape((n, h, w) if gray else (n, h, w, ch))
