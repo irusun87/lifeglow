@@ -251,7 +251,7 @@ def rounded_rect(w, h, r):
 
 
 # 상단 제목 스타일 (2026-10-16 이호준이 시안 ② 선택): 아이보리 띠 + 로즈 1줄 + 코코아 2줄, 강조어(하늘색으로 적은 부분)는 핑크 형광펜.
-# 스펙 "title_style": "classic" 이면 예전 검은 배경 + 노랑/흰/하늘색 제목.
+# 스펙 "title_style": "classic" 이면 예전 검은 배경 + 노랑/흰/하늘색 제목 (classic_title_png).
 IVORY = {"bg": (255, 246, 238), "l1": (226, 86, 120), "l2": (62, 42, 38), "hl": (255, 196, 210),
          "y1": 128, "y2": 212, "s1": 50, "s2": 68}
 
@@ -279,6 +279,37 @@ def title_png(spec, out):
                                     radius=round(6 * sc), fill=st["hl"])
             d.text((x, y), t, font=font, fill=color, anchor="lm")
             x += tw
+    im.save(out)
+    return out
+
+
+# 클래식(검은 띠) 제목 (2026-11-11 이호준이 가독성 시안 ② 선택): 가장 굵은 Paperlogy 9Black,
+# 줄마다 띠 폭에 꽉 차도록 글자 크기를 자동으로 맞춘다 (최대 크기·최대 폭은 720 기준).
+CLASSIC = {"y1": 137, "y2": 227, "s1": 80, "s2": 91, "w1": 653, "w2": 667, "min": 50}
+
+
+def classic_title_png(spec, out):
+    """클래식 스타일 제목 띠(검정 바탕, 1줄 노랑·2줄 흰색, 하늘색 강조어)를 PIL로 그린다."""
+    from PIL import Image, ImageDraw, ImageFont
+    st, sc = CLASSIC, OUT_SCALE
+    im = Image.new("RGB", (round(W * sc), round(VIDEO_Y * sc)), (0, 0, 0))
+    d = ImageDraw.Draw(im)
+    path = f"{FONT_DIR}/Paperlogy-9Black.ttf"
+    for k, default in enumerate([YELLOW, WHITE]):
+        ln = spec["title"][k]
+        runs = [[ln, default]] if isinstance(ln, str) else ln
+        y = st[f"y{k + 1}"] * sc
+        size = spec.get(f"title_size{k + 1}", st[f"s{k + 1}"])
+        while True:
+            font = ImageFont.truetype(path, round(size * sc))
+            tw = sum(d.textlength(t, font=font) for t, _ in runs)
+            if tw <= st[f"w{k + 1}"] * sc or size <= st["min"]:
+                break
+            size -= 1
+        x = (W * sc - tw) / 2
+        for t, c in runs:
+            d.text((x, y), t, font=font, fill="#" + c, anchor="lm")
+            x += d.textlength(t, font=font)
     im.save(out)
     return out
 
@@ -372,8 +403,8 @@ def build_ass(spec, timeline, total):
         lines.append(f"Dialogue: {layer},{ass_time(start)},{ass_time(end)},{style},,0,0,0,,{text}")
 
     t1, t2 = spec["title"]
-    if spec.get("title_style", "ivory") != "classic":
-        t1 = t2 = None  # 제목은 title_png 로 영상에 직접 얹는다
+    if spec.get("title_style", "ivory") != "classic" or spec.get("title_png", True):
+        t1 = t2 = None  # 제목은 title_png / classic_title_png 로 영상에 직접 얹는다 ("title_png": false면 예전 ASS 제목)
     tsize = spec.get("title_size", TITLE_SIZE)
     if t1 is not None:
         ev(0, total, "Title", f"{{\\pos({W // 2},{TITLE_Y1})\\fs{tsize}\\c{ass_color(YELLOW)}}}{title_line(t1)}")
@@ -676,8 +707,10 @@ def main():
                    f"pad={W}:{H}:0:{VIDEO_Y}:{bg},scale={OW}:{OH}:flags=lanczos,setsar=1[cut]")
     ass = work / "overlay.ass"
     ass.write_text(build_ass(spec, timeline, total), encoding="utf-8")
-    if spec.get("title_style", "ivory") != "classic":
-        inputs += ["-loop", "1", "-i", str(title_png(spec, work / "title.png"))]
+    classic = spec.get("title_style", "ivory") == "classic"
+    if not classic or spec.get("title_png", True):
+        png = classic_title_png(spec, work / "title.png") if classic else title_png(spec, work / "title.png")
+        inputs += ["-loop", "1", "-i", str(png)]
         filters.append(f"[cut][{n}:v]overlay=0:0:shortest=1[cut2]")
         filters.append(f"[cut2]ass={ass}:fontsdir={FONT_DIR}[vout]")
     else:
