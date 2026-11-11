@@ -106,7 +106,8 @@
     {
      "start": 40.37,
      "end": 44.75,
-     "x": "track"
+     "x": "track",
+     "track_off": -90
     }
    ],
    "captions": [
@@ -148,7 +149,7 @@
     {
      "start": 59.0,
      "end": 61.3,
-     "x": 520
+     "x": 640
     },
     {
      "start": 64.8,
@@ -273,9 +274,9 @@
      "video": "/mnt/project-files/assets/stock/cream/cream_blending.mp4",
      "start": 0,
      "end": 2.1,
-     "x": 585,
-     "y": 60,
-     "h": 1050
+     "x": 460,
+     "y": 150,
+     "h": 900
     }
    ],
    "overlay": [
