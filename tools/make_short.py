@@ -182,9 +182,9 @@ def face_track(src, start, end, step=0.25, xrange=None):
     return list(zip(ts, sm))
 
 
-def track_expr(track, cw, src_w):
-    """[(초, 얼굴 x)] → 크롭 왼쪽 x 를 시간에 따라 직선으로 잇는 ffmpeg 식."""
-    pts = [(t, min(max(x - cw / 2, 0), src_w - cw)) for t, x in track]
+def track_expr(track, cw, src_w, lo=0):
+    """[(초, 얼굴 x)] → 크롭 왼쪽 x 를 시간에 따라 직선으로 잇는 ffmpeg 식. lo = 크롭 왼쪽 x 최솟값."""
+    pts = [(t, min(max(x - cw / 2, lo), src_w - cw)) for t, x in track]
     expr = f"{pts[-1][1]:.1f}"
     for (t0, x0), (t1, x1) in reversed(list(zip(pts, pts[1:]))):
         expr = f"if(lt(t,{t1:.3f}),{x0:.1f}+({x1 - x0:.1f})*(t-{t0:.3f})/{max(t1 - t0, 0.01):.3f},{expr})"
@@ -579,10 +579,12 @@ def main():
                 cx = int(sum(x for _, x in track) / len(track))
                 print(f"얼굴 따라가기: {c['start']:.2f}~{c['start'] + cd:.2f} → x " +
                       " ".join(f"{x:.0f}" for _, x in track[::4]), file=sys.stderr)
-            x = min(max(cx - cw_c // 2, 0), src_w - cw_c)
+            # "x_min": 크롭 왼쪽 끝을 이 값 이상으로 (왼쪽 위 방송 배너가 크롭에 걸리지 않게)
+            lo = c.get("x_min", 0)
+            x = min(max(cx - cw_c // 2, lo), src_w - cw_c)
             xexpr = str(x)
             if track:
-                xexpr = track_expr(track, cw_c, src_w)
+                xexpr = track_expr(track, cw_c, src_w, lo)
             if "x_to" in c:
                 # 인물이 화면 밖으로 움직이면 컷 안에서 크롭 위치를 x → x_to 로 천천히 옮긴다(패닝)
                 x1 = min(max(c["x_to"] - cw_c // 2, 0), src_w - cw_c)
