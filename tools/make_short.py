@@ -697,8 +697,17 @@ def main():
                 n += 1
                 continue
             slow = f"setpts=(PTS-STARTPTS)/{sp},fps={FPS}," if sp != 1.0 else ""
+            yv = c.get('y', crop['y'])
+            if xexpr.startswith("'"):
+                # 움직이는 크롭(팬·얼굴 따라가기): 원본 픽셀 단위(4:2:0은 2px)로 크롭이 뚝뚝 움직여 화면이 버벅여 보인다
+                # (2026-11-13 이호준 지적) → 4배로 키운 뒤 크롭해서 1/4픽셀 단위로 부드럽게 움직인다
+                k = 4
+                cropf = (f"scale=iw*{k}:ih*{k}:flags=bicubic,"
+                         f"crop={cw_c * k}:{ch_c * k}:'{k}*({xexpr.strip(chr(39))})':{yv * k},")
+            else:
+                cropf = f"crop={cw_c}:{ch_c}:{xexpr}:{yv},"
             filters.append(
-                f"[{n}:v]{slow}{pre}crop={cw_c}:{ch_c}:{xexpr}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
+                f"[{n}:v]{slow}{pre}{cropf}scale={W}:{VIDEO_H}:flags=lanczos,"
                 f"fps={FPS},setsar=1,tpad=start_mode=clone:start_duration={lead / sp:.3f}:stop_mode=clone:stop_duration=3,"
                 f"trim=duration={cd:.3f},"
                 f"setpts=PTS-STARTPTS[v{n}]")
