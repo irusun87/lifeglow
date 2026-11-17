@@ -1,0 +1,266 @@
+{
+ "name": "선우용여 꼭 바르는 화장품 2가지 (바세린·갈색병) v1",
+ "source": "/mnt/project-files/60년 모은 1천만원어치 화장품 대공개하는 82세 선우용여 (동안비결).mp4",
+ "title_style": "classic",
+ "title": [
+  [
+   [
+    "82세 선우용여가",
+    "FCF103"
+   ]
+  ],
+  [
+   [
+    "꼭 바르는 화장품 ",
+    "FFFFFF"
+   ],
+   [
+    "2가지",
+    "00FEFD"
+   ]
+  ]
+ ],
+ "crop": {
+  "y": 0,
+  "h": 560
+ },
+ "segments": [
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 273.0,
+     "end": 276.1
+    }
+   ],
+   "captions": [
+    [
+     273.0,
+     274.5,
+     "아이고 용여야 너 이쁘지?"
+    ],
+    [
+     274.5,
+     276.1,
+     "어? 이쁘지?"
+    ]
+   ]
+  },
+  {
+   "text": "82세 배우 선우용여가 60년 모은 화장품 중, 매일 꼭 바르는 건 딱 두 가지입니다.",
+   "lines": [
+    "82세 배우 선우용여가",
+    "60년 모은 화장품 중",
+    "매일 꼭 바르는 건",
+    "딱 두 가지입니다"
+   ],
+   "clips": [
+    {
+     "start": 22.8,
+     "end": 25.0
+    },
+    {
+     "start": 31.2,
+     "end": 34.75,
+     "x": 640,
+     "speed": 0.95
+    }
+   ]
+  },
+  {
+   "text": "첫 번째는 뜻밖에도 3천 원짜리입니다.",
+   "lines": [
+    "첫 번째는 뜻밖에도",
+    "3천 원짜리입니다"
+   ],
+   "clips": [
+    {
+     "start": 832.0,
+     "end": 834.85,
+     "h": 500,
+     "y": 0
+    }
+   ],
+   "overlay": [
+    {
+     "type": "label",
+     "text": [
+      [
+       "단돈 ",
+       "FFFFFF"
+      ],
+      [
+       "3천 원",
+       "FCF103"
+      ]
+     ],
+     "at_sec": 1.2,
+     "dur": 1.5
+    }
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 826.9,
+     "end": 828.66,
+     "x": 640
+    },
+    {
+     "start": 828.66,
+     "end": 831.05
+    }
+   ],
+   "captions": [
+    [
+     826.9,
+     828.4,
+     "이 바세린은 꼭 발라"
+    ],
+    [
+     828.4,
+     831.05,
+     "집에 있을 때 립글로즈같이 바르고"
+    ]
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 831.1,
+     "end": 833.1,
+     "image": "/mnt/project-files/shorts/ep_sunwooyongyeo_cosmetics/broll/hand_rub.png",
+     "fy": 0.75,
+     "fx": 0.5,
+     "zoom": 0.06
+    },
+    {
+     "start": 833.1,
+     "end": 835.3,
+     "image": "/mnt/project-files/shorts/ep_sunwooyongyeo_cosmetics/broll/vaseline_jar.png",
+     "fx": 0.45,
+     "zoom": 0.08
+    }
+   ],
+   "captions": [
+    [
+     831.1,
+     833.1,
+     "발뒤꿈치가 뻣뻣하다"
+    ],
+    [
+     833.1,
+     835.3,
+     "그럴 때 이 뒤에다가 좀 바르고"
+    ]
+   ]
+  },
+  {
+   "text": "두 번째는 스킨 바로 다음에 바르는 세럼.",
+   "lines": [
+    "두 번째는",
+    "스킨 바로 다음에 바르는",
+    "세럼"
+   ],
+   "clips": [
+    {
+     "start": 132.0,
+     "end": 133.9
+    },
+    {
+     "start": 0,
+     "end": 0.9,
+     "image": "/mnt/project-files/shorts/ep_sunwooyongyeo_cosmetics/broll/serum_bottle.jpg",
+     "fx": 1.0,
+     "zoom": 0.06
+    }
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 133.92,
+     "end": 135.0,
+     "h": 500,
+     "y": 0,
+     "x": 620
+    },
+    {
+     "start": 135.0,
+     "end": 137.6,
+     "image": "/mnt/project-files/shorts/ep_sunwooyongyeo_cosmetics/broll/serum_dropper.jpg",
+     "fy": 0.4,
+     "zoom": 0.08
+    }
+   ],
+   "captions": [
+    [
+     133.92,
+     135.0,
+     "이건 에스티로더"
+    ],
+    [
+     135.0,
+     136.2,
+     "난 이거 꼭 발라"
+    ],
+    [
+     136.2,
+     137.6,
+     "이게 좋더라고요"
+    ]
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 122.28,
+     "end": 123.6
+    },
+    {
+     "start": 126.1,
+     "end": 127.37,
+     "vstart": 126.42
+    }
+   ],
+   "captions": [
+    [
+     122.28,
+     123.45,
+     "그래가지고 때려야 돼"
+    ],
+    [
+     126.1,
+     127.37,
+     "이렇게 때려주세요"
+    ]
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 362.1,
+     "end": 366.25
+    }
+   ],
+   "captions": [
+    [
+     362.1,
+     364.1,
+     "뭐든지 자기가 응용을 하면 돼"
+    ],
+    [
+     364.1,
+     366.25,
+     "한 가지만 할 필요가 없어"
+    ]
+   ]
+  }
+ ],
+ "caption_y": 985
+}

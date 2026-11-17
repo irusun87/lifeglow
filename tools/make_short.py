@@ -182,9 +182,9 @@ def face_track(src, start, end, step=0.25, xrange=None):
     return list(zip(ts, sm))
 
 
-def track_expr(track, cw, src_w):
-    """[(초, 얼굴 x)] → 크롭 왼쪽 x 를 시간에 따라 직선으로 잇는 ffmpeg 식."""
-    pts = [(t, min(max(x - cw / 2, 0), src_w - cw)) for t, x in track]
+def track_expr(track, cw, src_w, lo=0):
+    """[(초, 얼굴 x)] → 크롭 왼쪽 x 를 시간에 따라 직선으로 잇는 ffmpeg 식. lo = 크롭 왼쪽 x 최솟값."""
+    pts = [(t, min(max(x - cw / 2, lo), src_w - cw)) for t, x in track]
     expr = f"{pts[-1][1]:.1f}"
     for (t0, x0), (t1, x1) in reversed(list(zip(pts, pts[1:]))):
         expr = f"if(lt(t,{t1:.3f}),{x0:.1f}+({x1 - x0:.1f})*(t-{t0:.3f})/{max(t1 - t0, 0.01):.3f},{expr})"
@@ -272,12 +272,13 @@ def title_png(spec, out):
         x = (W * sc - sum(d.textlength(t, font=font) for t, _ in runs)) / 2
         for t, c in runs:
             tw = d.textlength(t, font=font)
-            if k == 1 and c.upper() == CYAN and t.strip():
+            # 하늘색으로 지정한 단어 = 형광펜 강조 (1줄도 가능: 1줄에서는 글자도 진하게)
+            if c.upper() == CYAN and t.strip():
                 lead = d.textlength(t[:len(t) - len(t.lstrip())], font=font)
                 trail = d.textlength(t[len(t.rstrip()):], font=font)
                 d.rounded_rectangle([x + lead - 6 * sc, y + 4 * sc, x + tw - trail + 6 * sc, y + size * 0.48],
                                     radius=round(6 * sc), fill=st["hl"])
-            d.text((x, y), t, font=font, fill=color, anchor="lm")
+            d.text((x, y), t, font=font, fill=(st["l2"] if k == 0 and c.upper() == CYAN else color), anchor="lm")
             x += tw
     im.save(out)
     return out
@@ -609,10 +610,12 @@ def main():
                 cx = int(sum(x for _, x in track) / len(track))
                 print(f"얼굴 따라가기: {c['start']:.2f}~{c['start'] + cd:.2f} → x " +
                       " ".join(f"{x:.0f}" for _, x in track[::4]), file=sys.stderr)
-            x = min(max(cx - cw_c // 2, 0), src_w - cw_c)
+            # "x_min": 크롭 왼쪽 끝을 이 값 이상으로 (왼쪽 위 방송 배너가 크롭에 걸리지 않게)
+            lo = c.get("x_min", 0)
+            x = min(max(cx - cw_c // 2, lo), src_w - cw_c)
             xexpr = str(x)
             if track:
-                xexpr = track_expr(track, cw_c, src_w)
+                xexpr = track_expr(track, cw_c, src_w, lo)
             if "x_to" in c:
                 # 인물이 화면 밖으로 움직이면 컷 안에서 크롭 위치를 x → x_to 로 천천히 옮긴다(패닝)
                 x1 = min(max(c["x_to"] - cw_c // 2, 0), src_w - cw_c)
@@ -694,8 +697,17 @@ def main():
                 n += 1
                 continue
             slow = f"setpts=(PTS-STARTPTS)/{sp},fps={FPS}," if sp != 1.0 else ""
+            yv = c.get('y', crop['y'])
+            if xexpr.startswith("'"):
+                # 움직이는 크롭(팬·얼굴 따라가기): 원본 픽셀 단위(4:2:0은 2px)로 크롭이 뚝뚝 움직여 화면이 버벅여 보인다
+                # (2026-11-13 이호준 지적) → 4배로 키운 뒤 크롭해서 1/4픽셀 단위로 부드럽게 움직인다
+                k = 4
+                cropf = (f"scale=iw*{k}:ih*{k}:flags=bicubic,"
+                         f"crop={cw_c * k}:{ch_c * k}:'{k}*({xexpr.strip(chr(39))})':{yv * k},")
+            else:
+                cropf = f"crop={cw_c}:{ch_c}:{xexpr}:{yv},"
             filters.append(
-                f"[{n}:v]{slow}{pre}crop={cw_c}:{ch_c}:{xexpr}:{c.get('y', crop['y'])},scale={W}:{VIDEO_H}:flags=lanczos,"
+                f"[{n}:v]{slow}{pre}{cropf}scale={W}:{VIDEO_H}:flags=lanczos,"
                 f"fps={FPS},setsar=1,tpad=start_mode=clone:start_duration={lead / sp:.3f}:stop_mode=clone:stop_duration=3,"
                 f"trim=duration={cd:.3f},"
                 f"setpts=PTS-STARTPTS[v{n}]")
