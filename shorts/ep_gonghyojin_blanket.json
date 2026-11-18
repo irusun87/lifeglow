@@ -48,6 +48,41 @@
      922.72,
      "입 돌아갈 뻔했고요"
     ]
+   ],
+   "overlay": [
+    {
+     "type": "arrow",
+     "dir": "down",
+     "length": 30,
+     "color": "FF2A2A",
+     "sfx": false,
+     "x": 590,
+     "y": 610,
+     "at_sec": 0.3,
+     "dur": 0.9
+    },
+    {
+     "type": "arrow",
+     "dir": "down",
+     "length": 30,
+     "color": "FF2A2A",
+     "sfx": false,
+     "x": 580,
+     "y": 690,
+     "at_sec": 1.2,
+     "dur": 1.3
+    },
+    {
+     "type": "arrow",
+     "dir": "down",
+     "length": 30,
+     "color": "FF2A2A",
+     "sfx": false,
+     "x": 600,
+     "y": 620,
+     "at_sec": 2.5,
+     "dur": 0.7
+    }
    ]
   },
   {
@@ -261,5 +296,7 @@
    ]
   }
  ],
- "caption_y": 985
+ "caption_y": 985,
+ "title_size1": 53,
+ "title_size2": 53
 }
