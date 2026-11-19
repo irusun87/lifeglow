@@ -1,5 +1,5 @@
 {
- "name": "문숙 46kg 유지 생활습관 3가지 v1",
+ "name": "문숙 46kg 유지 생활습관 3가지 v2",
  "source": "/mnt/project-files/[TV후공개] 문숙 스페셜! 문숙만의 특별한 건강 생활 습관 [같이 삽시다 유튜브 온리].mp4",
  "sources": {
   "b": "/mnt/project-files/[TV후공개] 고등학생때부터 46kg를 유지해온 문숙의 건강 상태 [같이 삽시다 시즌2].mp4"
@@ -36,14 +36,11 @@
      "src": "b",
      "start": 108.8,
      "end": 112.05,
-     "x": "track",
-     "y": 10,
-     "h": 540,
-     "track_range": [
-      850,
-      1280
-     ],
-     "track_off": 40
+     "video": "/mnt/project-files/shorts/ep_moonsook_46kg/clips/hook_yoga_slow.mp4",
+     "vstart": 0.0,
+     "x": 470,
+     "y": 112,
+     "h": 560
     }
    ],
    "captions": [
@@ -92,7 +89,7 @@
      "start": 21.0,
      "end": 23.3,
      "x": "track",
-     "speed": 0.96
+     "speed": 0.85
     },
     {
      "start": 384.6,
