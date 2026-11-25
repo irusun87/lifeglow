@@ -1,0 +1,400 @@
+{
+ "name": "이호선 최악의 친구 유형 3가지 (이호선 상담소) v1",
+ "source": "/mnt/project-files/[이호선상담소] 이런 사람은 진짜 친구가 아니에요🔥 이호선도 당했던 최악의 친구 유형 3가지ㄷㄷ.mp4",
+ "title_style": "classic",
+ "title": [
+  [
+   [
+    "심리학자 이호선도 당한",
+    "FCF103"
+   ]
+  ],
+  [
+   [
+    "최악의 친구 유형 ",
+    "FFFFFF"
+   ],
+   [
+    "3가지",
+    "00FEFD"
+   ]
+  ]
+ ],
+ "crop": {
+  "y": 105,
+  "h": 435
+ },
+ "caption_y": 985,
+ "segments": [
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 436.85,
+     "end": 438.2,
+     "video": "/mnt/project-files/shorts/ep_leehoseon_friends/broll/b_38084.mp4",
+     "vstart": 1.0,
+     "x": 640,
+     "y": 0,
+     "h": 720
+    },
+    {
+     "start": 438.2,
+     "end": 440.7,
+     "x": "track"
+    }
+   ],
+   "captions": [
+    [
+     436.85,
+     438.74,
+     "딱 1년에 한 번 전화해서"
+    ],
+    [
+     438.74,
+     439.9,
+     "꼭 돈 빌려달라는"
+    ],
+    [
+     439.9,
+     440.7,
+     "친구가 있어요"
+    ]
+   ]
+  },
+  {
+   "text": "상담심리학자 이호선이 꼽은 최악의 친구, 첫째는 나를 이용하는 친구입니다.",
+   "lines": [
+    "상담심리학자",
+    "이호선이 꼽은",
+    "최악의 친구",
+    "첫째는",
+    "나를 이용하는 친구"
+   ],
+   "clips": [
+    {
+     "start": 2.0,
+     "end": 4.3,
+     "video": "/mnt/project-files/shorts/ep_leehoseon_friends/broll/b_50622.mp4",
+     "x": 640,
+     "y": 0,
+     "h": 720
+    },
+    {
+     "start": 448.0,
+     "end": 451.2,
+     "x": "track"
+    }
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 465.2,
+     "end": 466.6,
+     "video": "/mnt/project-files/shorts/ep_leehoseon_friends/broll/b_138317.mp4",
+     "vstart": 5.5,
+     "x": 640,
+     "y": 0,
+     "h": 720
+    },
+    {
+     "start": 466.6,
+     "end": 468.4,
+     "x": "track"
+    }
+   ],
+   "captions": [
+    [
+     465.2,
+     466.8,
+     "배 갈린 돼지 저금통으로"
+    ],
+    [
+     466.8,
+     468.4,
+     "보는 건 아닌지"
+    ]
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 489.1,
+     "end": 491.95,
+     "video": "/mnt/project-files/shorts/ep_leehoseon_friends/broll/b_189020.mp4",
+     "vstart": 2.0,
+     "x": 640,
+     "y": 0,
+     "h": 720
+    },
+    {
+     "start": 491.95,
+     "end": 494.05,
+     "x": "track"
+    }
+   ],
+   "captions": [
+    [
+     489.1,
+     491.22,
+     "호텔 결혼이 얼마인지 아시죠?"
+    ],
+    [
+     491.22,
+     494.05,
+     "꽃 값만 몇 천만 원이에요"
+    ]
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 500.95,
+     "end": 502.6,
+     "x": "track"
+    },
+    {
+     "start": 502.6,
+     "end": 504.45,
+     "video": "/mnt/project-files/shorts/ep_leehoseon_friends/broll/b_204803.mp4",
+     "vstart": 3.0,
+     "x": 640,
+     "y": 0,
+     "h": 720
+    }
+   ],
+   "captions": [
+    [
+     500.95,
+     502.64,
+     "그 친구 딸 결혼할 때"
+    ],
+    [
+     502.64,
+     503.22,
+     "거기 있는 꽃"
+    ],
+    [
+     503.22,
+     504.45,
+     "제가 다 가져왔어요"
+    ]
+   ]
+  },
+  {
+   "text": "둘째, 나를 들러리로 착취하는 친구.",
+   "lines": [
+    "둘째",
+    "나를 들러리로",
+    "착취하는 친구"
+   ],
+   "clips": [
+    {
+     "start": 1.0,
+     "end": 3.0,
+     "video": "/mnt/project-files/shorts/ep_leehoseon_friends/broll/b_241224.mp4",
+     "x": 1680,
+     "y": 0,
+     "h": 1440
+    },
+    {
+     "start": 531.0,
+     "end": 532.1,
+     "x": "track"
+    }
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 523.75,
+     "end": 526.13,
+     "video": "/mnt/project-files/shorts/ep_leehoseon_friends/broll/b_241225.mp4",
+     "vstart": 0.5,
+     "x": 1400,
+     "y": 0,
+     "h": 1440
+    },
+    {
+     "start": 526.13,
+     "end": 528.2,
+     "x": "track"
+    }
+   ],
+   "captions": [
+    [
+     523.75,
+     525.68,
+     "이쁘고 날씬한 애들 중에"
+    ],
+    [
+     525.68,
+     527.02,
+     "옆에 뚱뚱한 애들"
+    ],
+    [
+     527.02,
+     528.2,
+     "데리고 다니는 친구들이 있어요"
+    ]
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 577.45,
+     "end": 579.95,
+     "x": "track"
+    }
+   ],
+   "captions": [
+    [
+     577.45,
+     578.66,
+     "나중에는 얘가"
+    ],
+    [
+     578.66,
+     579.95,
+     "우리를 이용하는구나"
+    ]
+   ]
+  },
+  {
+   "text": "셋째, 내 부탁을 전부 거절하는 친구입니다.",
+   "lines": [
+    "셋째",
+    "내 부탁을",
+    "전부 거절하는 친구"
+   ],
+   "clips": [
+    {
+     "start": 602.8,
+     "end": 606.2,
+     "x": "track"
+    }
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 611.7,
+     "end": 613.6,
+     "x": "track",
+     "track_off": -28
+    },
+    {
+     "start": 614.05,
+     "end": 615.9,
+     "video": "/mnt/project-files/shorts/ep_leehoseon_friends/broll/b_38084.mp4",
+     "vstart": 3.0,
+     "x": 640,
+     "y": 0,
+     "h": 720
+    },
+    {
+     "start": 615.9,
+     "end": 617.05,
+     "x": "track"
+    }
+   ],
+   "captions": [
+    [
+     611.7,
+     613.6,
+     "걔는 나를 증오하는 애예요"
+    ],
+    [
+     614.05,
+     615.86,
+     "나를 싫어하거나"
+    ],
+    [
+     615.86,
+     617.05,
+     "나를 우습게 하는 애인 겁니다"
+    ]
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 639.7,
+     "end": 641.2,
+     "x": "track"
+    },
+    {
+     "start": 641.2,
+     "end": 643.4,
+     "video": "/mnt/project-files/shorts/ep_leehoseon_friends/broll/b_204421.mp4",
+     "vstart": 4.0,
+     "x": 1250,
+     "y": 0,
+     "h": 1440
+    }
+   ],
+   "captions": [
+    [
+     639.7,
+     641.2,
+     "말로 하지 말 것"
+    ],
+    [
+     641.2,
+     643.4,
+     "그 순간 원수가 됩니다"
+    ]
+   ]
+  },
+  {
+   "type": "original",
+   "parts": [
+    {
+     "start": 650.25,
+     "end": 651.9,
+     "x": "track"
+    }
+   ],
+   "captions": [
+    [
+     650.25,
+     651.9,
+     "그냥 안 만나시면 돼요"
+    ]
+   ]
+  },
+  {
+   "text": "나이 들수록 관계도 지혜롭게 정리해야겠죠.",
+   "lines": [
+    "나이 들수록",
+    "관계도 지혜롭게",
+    "정리해야겠죠"
+   ],
+   "clips": [
+    {
+     "start": 2.5,
+     "end": 4.0,
+     "video": "/mnt/project-files/shorts/ep_leehoseon_friends/broll/b_241225.mp4",
+     "x": 1400,
+     "y": 0,
+     "h": 1440
+    },
+    {
+     "start": 652.65,
+     "end": 654.1,
+     "x": "track"
+    }
+   ]
+  }
+ ],
+ "title_size1": 70,
+ "title_size2": 70
+}

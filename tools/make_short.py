@@ -591,6 +591,13 @@ def main():
                     ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width",
                      "-of", "csv=p=0", src], capture_output=True, text=True).stdout)
             cuts, src_w = cuts_of[src], width_of[src]
+            if c.get("video"):
+                # 다른 영상 파일(2560px 픽사베이 등)은 그 파일의 가로 폭으로 크롭 위치를 맞춘다
+                if c["video"] not in width_of:
+                    width_of[c["video"]] = int(subprocess.run(
+                        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width",
+                         "-of", "csv=p=0", c["video"]], capture_output=True, text=True).stdout)
+                src_w = width_of[c["video"]]
             # 클립마다 크롭 높이를 바꿀 수 있다 ("h"): 손에 든 제품을 숨기려고 얼굴 쪽만 확대할 때
             ch_c = c.get("h", ch)
             cw_c = round(ch_c * W / VIDEO_H) // 2 * 2
